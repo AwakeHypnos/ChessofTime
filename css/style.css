@@ -1,0 +1,630 @@
+/* 赛博朋克风格配色 */
+:root {
+    --cyber-black: #0a0a0f;
+    --cyber-dark: #1a1a2e;
+    --cyber-purple: #9d4edd;
+    --cyber-pink: #f72585;
+    --cyber-cyan: #4cc9f0;
+    --cyber-yellow: #ffd60a;
+    --cyber-green: #06ffa5;
+    --cyber-red: #ff0054;
+    --cyber-blue: #4361ee;
+    --cyber-white: #e0e0e0;
+    --cyber-glow-purple: rgba(157, 78, 221, 0.6);
+    --cyber-glow-pink: rgba(247, 37, 133, 0.6);
+    --cyber-glow-cyan: rgba(76, 201, 240, 0.6);
+    --cyber-glow-yellow: rgba(255, 214, 10, 0.6);
+    --cyber-glow-green: rgba(6, 255, 165, 0.6);
+    --cyber-glow-red: rgba(255, 0, 84, 0.6);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--cyber-black);
+    color: var(--cyber-white);
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 赛博朋克背景网格 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(76, 201, 240, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(76, 201, 240, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: -1;
+}
+
+#app {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 菜单样式 */
+.menu-container {
+    background: rgba(26, 26, 46, 0.9);
+    border: 2px solid var(--cyber-cyan);
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 
+        0 0 20px var(--cyber-glow-cyan),
+        inset 0 0 20px rgba(76, 201, 240, 0.1);
+    max-width: 500px;
+    width: 90%;
+}
+
+.game-title {
+    font-size: 3.5rem;
+    font-weight: bold;
+    background: linear-gradient(90deg, var(--cyber-cyan), var(--cyber-purple), var(--cyber-pink));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px var(--cyber-glow-cyan);
+    margin-bottom: 10px;
+}
+
+.game-subtitle {
+    color: var(--cyber-cyan);
+    font-size: 1.2rem;
+    margin-bottom: 40px;
+    text-shadow: 0 0 10px var(--cyber-glow-cyan);
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.menu-btn {
+    background: transparent;
+    border: 2px solid var(--cyber-cyan);
+    color: var(--cyber-cyan);
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(76, 201, 240, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.menu-btn:hover::before {
+    left: 100%;
+}
+
+.menu-btn:hover {
+    background: var(--cyber-cyan);
+    color: var(--cyber-black);
+    box-shadow: 0 0 20px var(--cyber-glow-cyan);
+}
+
+.menu-title {
+    font-size: 2rem;
+    color: var(--cyber-cyan);
+    margin-bottom: 30px;
+    text-shadow: 0 0 15px var(--cyber-glow-cyan);
+}
+
+/* 难度选择 */
+.difficulty-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.difficulty-btn {
+    background: transparent;
+    border: 2px solid var(--cyber-purple);
+    color: var(--cyber-purple);
+    padding: 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.difficulty-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(157, 78, 221, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.difficulty-btn:hover::before {
+    left: 100%;
+}
+
+.difficulty-btn:hover {
+    background: var(--cyber-purple);
+    color: var(--cyber-white);
+    box-shadow: 0 0 20px var(--cyber-glow-purple);
+}
+
+.difficulty-btn.selected {
+    background: var(--cyber-purple);
+    color: var(--cyber-white);
+    box-shadow: 0 0 25px var(--cyber-glow-purple);
+    border-color: var(--cyber-pink);
+}
+
+.back-btn {
+    border-color: var(--cyber-yellow);
+    color: var(--cyber-yellow);
+}
+
+.back-btn:hover {
+    background: var(--cyber-yellow);
+    color: var(--cyber-black);
+    box-shadow: 0 0 20px var(--cyber-glow-yellow);
+}
+
+/* 开发人员界面 */
+.credits-content {
+    margin-bottom: 30px;
+}
+
+.credit-line {
+    color: var(--cyber-white);
+    font-size: 1.1rem;
+    margin: 10px 0;
+    text-shadow: 0 0 5px var(--cyber-glow-cyan);
+}
+
+/* 存档列表 */
+.save-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.save-item {
+    background: rgba(76, 201, 240, 0.1);
+    border: 1px solid var(--cyber-cyan);
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-item:hover {
+    background: rgba(76, 201, 240, 0.2);
+    box-shadow: 0 0 15px var(--cyber-glow-cyan);
+}
+
+.save-name {
+    color: var(--cyber-cyan);
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.save-date {
+    color: var(--cyber-white);
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.no-saves {
+    color: var(--cyber-white);
+    opacity: 0.6;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* 游戏界面 */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    gap: 10px;
+}
+
+.opponent-area, .player-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+}
+
+.board-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+
+/* 玩家信息 */
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.player-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--cyber-cyan);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(26, 26, 46, 0.8);
+    box-shadow: 0 0 20px var(--cyber-glow-cyan);
+}
+
+.opponent-avatar {
+    border-color: var(--cyber-pink);
+    box-shadow: 0 0 20px var(--cyber-glow-pink);
+}
+
+.avatar-icon {
+    font-size: 2.5rem;
+}
+
+.player-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.player-name {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--cyber-cyan);
+    text-shadow: 0 0 10px var(--cyber-glow-cyan);
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.control-btn {
+    background: transparent;
+    border: 2px solid var(--cyber-green);
+    color: var(--cyber-green);
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.control-btn:hover {
+    background: var(--cyber-green);
+    color: var(--cyber-black);
+    box-shadow: 0 0 15px var(--cyber-glow-green);
+}
+
+.control-btn.disabled {
+    border-color: #555;
+    color: #555;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.control-btn.disabled:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+.save-btn {
+    border-color: var(--cyber-yellow);
+    color: var(--cyber-yellow);
+}
+
+.save-btn:hover {
+    background: var(--cyber-yellow);
+    color: var(--cyber-black);
+    box-shadow: 0 0 15px var(--cyber-glow-yellow);
+}
+
+.load-btn {
+    border-color: var(--cyber-purple);
+    color: var(--cyber-purple);
+}
+
+.load-btn:hover {
+    background: var(--cyber-purple);
+    color: var(--cyber-white);
+    box-shadow: 0 0 15px var(--cyber-glow-purple);
+}
+
+/* 状态灯 */
+.status-lights {
+    display: flex;
+    gap: 15px;
+}
+
+.status-light {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.light-label {
+    font-size: 0.75rem;
+    color: var(--cyber-white);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.checkmate-light::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #333;
+    border: 2px solid var(--cyber-red);
+    transition: all 0.3s ease;
+}
+
+.checkmate-light.active::before {
+    background: var(--cyber-red);
+    box-shadow: 0 0 15px var(--cyber-glow-red);
+    animation: pulse 1s infinite;
+}
+
+.stalemate-light::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #333;
+    border: 2px solid var(--cyber-yellow);
+    transition: all 0.3s ease;
+}
+
+.stalemate-light.active::before {
+    background: var(--cyber-yellow);
+    box-shadow: 0 0 15px var(--cyber-glow-yellow);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 吃掉的棋子 */
+.captured-pieces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 10px;
+    background: rgba(26, 26, 46, 0.6);
+    border: 1px solid rgba(76, 201, 240, 0.3);
+    border-radius: 5px;
+    min-height: 50px;
+    max-width: 400px;
+}
+
+.captured-piece {
+    font-size: 1.5rem;
+    opacity: 0.7;
+    filter: grayscale(30%);
+}
+
+/* 棋盘 */
+.chess-board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: min(80vh, 80vw);
+    height: min(80vh, 80vw);
+    border: 4px solid var(--cyber-cyan);
+    box-shadow: 
+        0 0 30px var(--cyber-glow-cyan),
+        inset 0 0 30px rgba(76, 201, 240, 0.1);
+    position: relative;
+}
+
+.square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.square.light {
+    background: linear-gradient(135deg, #2a2a4e, #1a1a3e);
+}
+
+.square.dark {
+    background: linear-gradient(135deg, #1a1a2e, #0a0a1e);
+}
+
+.square:hover {
+    box-shadow: inset 0 0 20px var(--cyber-glow-cyan);
+}
+
+.square.selected {
+    box-shadow: inset 0 0 30px var(--cyber-glow-purple);
+    border: 2px solid var(--cyber-purple);
+}
+
+.square.valid-move::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(76, 201, 240, 0.5);
+    box-shadow: 0 0 15px var(--cyber-glow-cyan);
+}
+
+.square.valid-capture::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 3px solid var(--cyber-red);
+    box-sizing: border-box;
+    box-shadow: inset 0 0 20px var(--cyber-glow-red);
+}
+
+.square.last-move-from {
+    box-shadow: inset 0 0 30px var(--cyber-glow-yellow);
+    background: linear-gradient(135deg, rgba(255, 214, 10, 0.2), rgba(255, 214, 10, 0.1)) !important;
+}
+
+.square.last-move-to {
+    box-shadow: inset 0 0 30px var(--cyber-glow-green);
+    background: linear-gradient(135deg, rgba(6, 255, 165, 0.2), rgba(6, 255, 165, 0.1)) !important;
+}
+
+.piece {
+    font-size: 3rem;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease;
+    user-select: none;
+}
+
+.piece.white {
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+}
+
+.piece.black {
+    filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.8));
+}
+
+.square:hover .piece {
+    transform: scale(1.1);
+}
+
+/* 弹窗 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--cyber-dark);
+    border: 3px solid var(--cyber-cyan);
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 0 30px var(--cyber-glow-cyan);
+    max-width: 500px;
+    width: 90%;
+}
+
+.game-result {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    background: linear-gradient(90deg, var(--cyber-cyan), var(--cyber-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 20px var(--cyber-glow-cyan);
+}
+
+.result-message {
+    color: var(--cyber-white);
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--cyber-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--cyber-cyan);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--cyber-purple);
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChessTime - 穿越时间的象棋</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 主菜单界面 -->
+        <div id="main-menu" class="screen active">
+            <div class="menu-container">
+                <h1 class="game-title">ChessTime</h1>
+                <p class="game-subtitle">穿越时间的象棋</p>
+                <div class="menu-buttons">
+                    <button id="start-game" class="menu-btn">开始游戏</button>
+                    <button id="load-game" class="menu-btn">读取存档</button>
+                    <button id="difficulty-btn" class="menu-btn">选择难度</button>
+                    <button id="credits" class="menu-btn">开发人员</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 难度选择界面 -->
+        <div id="difficulty-menu" class="screen">
+            <div class="menu-container">
+                <h2 class="menu-title">选择难度</h2>
+                <div class="difficulty-buttons">
+                    <button class="difficulty-btn" data-difficulty="easy">简单</button>
+                    <button class="difficulty-btn" data-difficulty="medium">中等</button>
+                    <button class="difficulty-btn" data-difficulty="hard">困难</button>
+                    <button class="difficulty-btn" data-difficulty="master">大师</button>
+                </div>
+                <button id="back-from-difficulty" class="menu-btn back-btn">返回</button>
+            </div>
+        </div>
+
+        <!-- 开发人员界面 -->
+        <div id="credits-screen" class="screen">
+            <div class="menu-container">
+                <h2 class="menu-title">开发人员</h2>
+                <div class="credits-content">
+                    <p class="credit-line">ChessTime - 穿越时间的象棋</p>
+                    <p class="credit-line">版本 1.0.0</p>
+                    <p class="credit-line">赛博朋克风格国际象棋游戏</p>
+                    <p class="credit-line"></p>
+                    <p class="credit-line">开发团队：</p>
+                    <p class="credit-line">AI 辅助开发</p>
+                </div>
+                <button id="back-from-credits" class="menu-btn back-btn">返回</button>
+            </div>
+        </div>
+
+        <!-- 读取存档界面 -->
+        <div id="load-screen" class="screen">
+            <div class="menu-container">
+                <h2 class="menu-title">读取存档</h2>
+                <div id="save-list" class="save-list">
+                    <p class="no-saves">暂无存档</p>
+                </div>
+                <button id="back-from-load" class="menu-btn back-btn">返回</button>
+            </div>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="screen">
+            <div class="game-container">
+                <!-- 对手区域 -->
+                <div class="opponent-area">
+                    <div class="player-info">
+                        <div class="player-avatar opponent-avatar">
+                            <div class="avatar-icon">🤖</div>
+                        </div>
+                        <div class="player-details">
+                            <div class="player-name">AI 对手</div>
+                            <div class="player-controls">
+                                <button id="opponent-reverse" class="control-btn reverse-btn disabled" disabled>悔棋</button>
+                                <div class="status-lights">
+                                    <div id="opponent-checkmate" class="status-light checkmate-light">
+                                        <span class="light-label">Checkmate</span>
+                                    </div>
+                                    <div id="opponent-stalemate" class="status-light stalemate-light">
+                                        <span class="light-label">Stalemate</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="opponent-captured" class="captured-pieces">
+                        <!-- 对手吃掉的棋子 -->
+                    </div>
+                </div>
+
+                <!-- 棋盘区域 -->
+                <div class="board-area">
+                    <div id="chess-board" class="chess-board">
+                        <!-- 棋盘格子将通过JS生成 -->
+                    </div>
+                </div>
+
+                <!-- 玩家区域 -->
+                <div class="player-area">
+                    <div id="player-captured" class="captured-pieces">
+                        <!-- 玩家吃掉的棋子 -->
+                    </div>
+                    <div class="player-info">
+                        <div class="player-details">
+                            <div class="player-name">玩家</div>
+                            <div class="player-controls">
+                                <button id="player-reverse" class="control-btn reverse-btn">悔棋</button>
+                                <button id="player-save" class="control-btn save-btn">存档</button>
+                                <button id="player-load" class="control-btn load-btn">读档</button>
+                                <div class="status-lights">
+                                    <div id="player-checkmate" class="status-light checkmate-light">
+                                        <span class="light-label">Checkmate</span>
+                                    </div>
+                                    <div id="player-stalemate" class="status-light stalemate-light">
+                                        <span class="light-label">Stalemate</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="player-avatar player-avatar">
+                            <div class="avatar-icon">👤</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 游戏结束弹窗 -->
+                <div id="game-over-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <h2 id="game-result" class="game-result"></h2>
+                        <p id="game-result-message" class="result-message"></p>
+                        <div class="modal-buttons">
+                            <button id="restart-game" class="menu-btn">重新开始</button>
+                            <button id="back-to-menu" class="menu-btn">返回主菜单</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 存档成功弹窗 -->
+                <div id="save-success-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <h2 class="game-result">存档成功</h2>
+                        <p class="result-message">游戏已保存到 Save 文件夹</p>
+                        <div class="modal-buttons">
+                            <button id="close-save-modal" class="menu-btn">确定</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 读档选择弹窗 -->
+                <div id="load-game-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <h2 class="game-result">选择存档</h2>
+                        <div id="modal-save-list" class="save-list">
+                            <p class="no-saves">暂无存档</p>
+                        </div>
+                        <div class="modal-buttons">
+                            <button id="close-load-modal" class="menu-btn">取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/chess.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
