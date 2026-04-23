@@ -110,7 +110,8 @@
         }
 
         undoMove() {
-            if (this.history.size() === 0) {
+            const historySize = this.history.size();
+            if (historySize === 0) {
                 console.log('没有可悔棋的步骤');
                 return false;
             }
@@ -120,20 +121,28 @@
                 return false;
             }
 
-            let undoCount = 1;
-            if (this.history.size() >= 2) {
+            let undoCount = 0;
+            
+            if (historySize % 2 === 1) {
+                undoCount = 1;
+            } else {
                 undoCount = 2;
             }
 
-            for (let i = 0; i < undoCount; i++) {
+            if (historySize < undoCount) {
+                undoCount = historySize;
+            }
+
+            console.log(`悔棋步数: ${undoCount}, 历史记录数: ${historySize}`);
+
+            for (let i = 0; i < undoCount && this.history.size() > 0; i++) {
                 const undoResult = this.history.undo();
-                if (undoResult) {
-                    if (undoResult.move.capturedPiece) {
-                        if (i === 0) {
-                            this.capturedPieces.player.pop();
-                        } else {
-                            this.capturedPieces.opponent.pop();
-                        }
+                if (undoResult && undoResult.move && undoResult.move.capturedPiece) {
+                    const moveIndex = historySize - i;
+                    if (moveIndex % 2 === 1) {
+                        this.capturedPieces.player.pop();
+                    } else {
+                        this.capturedPieces.opponent.pop();
                     }
                 }
             }
@@ -187,14 +196,31 @@
                 }))
             };
 
+            const saveName = `save_${new Date().toISOString().replace(/[:.]/g, '-')}`;
             const jsonString = JSON.stringify(saveData, null, 2);
-            
-            const saveName = `save_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-            
-            this.downloadSave(saveName, jsonString);
-            
-            this.ui.showSaveSuccess();
-            console.log(`游戏已保存为: ${saveName}`);
+
+            try {
+                let saves = this.getSavesFromStorage();
+                saves.unshift({
+                    name: saveName,
+                    date: saveData.date,
+                    data: saveData
+                });
+                
+                if (saves.length > 10) {
+                    saves = saves.slice(0, 10);
+                }
+                
+                localStorage.setItem('chesstime_saves', JSON.stringify(saves));
+                
+                this.downloadSave(saveName + '.json', jsonString);
+                
+                this.ui.showSaveSuccess();
+                console.log(`游戏已保存为: ${saveName}`);
+            } catch (error) {
+                console.error('保存失败:', error);
+                alert('保存失败，请重试');
+            }
         }
 
         downloadSave(filename, content) {
@@ -209,16 +235,37 @@
             URL.revokeObjectURL(url);
         }
 
-        getSaveFiles() {
-            return [
-                {
-                    name: '示例存档',
-                    date: new Date().toISOString()
+        getSavesFromStorage() {
+            try {
+                const savesStr = localStorage.getItem('chesstime_saves');
+                if (savesStr) {
+                    return JSON.parse(savesStr);
                 }
-            ];
+            } catch (error) {
+                console.error('读取存档列表失败:', error);
+            }
+            return [];
+        }
+
+        getSaveFiles() {
+            const saves = this.getSavesFromStorage();
+            return saves.map(save => ({
+                name: save.name,
+                date: save.date
+            }));
         }
 
         loadGame(saveName) {
+            if (saveName && typeof saveName === 'string') {
+                const saves = this.getSavesFromStorage();
+                const save = saves.find(s => s.name === saveName);
+                if (save && save.data) {
+                    this.restoreGame(save.data);
+                    console.log(`存档已加载: ${saveName}`);
+                    return;
+                }
+            }
+
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
