@@ -85,22 +85,26 @@
         easy: {
             depth: 1,
             randomness: 0.4,
-            useQuiescence: false
+            useQuiescence: false,
+            quiescenceDepth: 0
         },
         medium: {
             depth: 2,
             randomness: 0.2,
-            useQuiescence: false
+            useQuiescence: false,
+            quiescenceDepth: 0
         },
         hard: {
-            depth: 3,
+            depth: 2,
             randomness: 0.05,
-            useQuiescence: true
+            useQuiescence: true,
+            quiescenceDepth: 2
         },
         master: {
-            depth: 4,
+            depth: 3,
             randomness: 0,
-            useQuiescence: true
+            useQuiescence: true,
+            quiescenceDepth: 2
         }
     };
 
@@ -190,11 +194,7 @@
         }
 
         evaluateMobility(board) {
-            let score = 0;
-            const blackMoves = board.getAllLegalMoves(Color.BLACK).length;
-            const whiteMoves = board.getAllLegalMoves(Color.WHITE).length;
-            score += (blackMoves - whiteMoves) * 2;
-            return score;
+            return 0;
         }
 
         evaluatePawnStructure(board) {
@@ -267,21 +267,35 @@
             }
         }
 
-        quiescence(board, alpha, beta) {
+        quiescence(board, alpha, beta, depthLeft) {
+            const maxQuiescenceDepth = this.config.quiescenceDepth || 2;
+            
+            if (depthLeft === undefined) {
+                depthLeft = maxQuiescenceDepth;
+            }
+            
             const standPat = this.evaluateBoard(board);
             
             if (standPat >= beta) return beta;
             if (alpha < standPat) alpha = standPat;
 
+            if (depthLeft <= 0) {
+                return alpha;
+            }
+
             const moves = board.getAllLegalMoves(Color.BLACK);
             const captures = moves.filter(m => m.capturedPiece);
+            
+            if (captures.length === 0) {
+                return alpha;
+            }
             
             this.orderMoves(board, captures);
 
             for (const move of captures) {
                 const boardClone = board.clone();
                 boardClone.makeMove(move, true);
-                const score = -this.quiescence(boardClone, -beta, -alpha);
+                const score = -this.quiescence(boardClone, -beta, -alpha, depthLeft - 1);
                 
                 if (score >= beta) return beta;
                 if (score > alpha) alpha = score;
