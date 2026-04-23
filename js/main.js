@@ -135,21 +135,25 @@
 
             console.log(`悔棋步数: ${undoCount}, 历史记录数: ${historySize}`);
 
+            let finalBoard = null;
             for (let i = 0; i < undoCount && this.history.size() > 0; i++) {
                 const undoResult = this.history.undo();
-                if (undoResult && undoResult.move && undoResult.move.capturedPiece) {
-                    const moveIndex = historySize - i;
-                    if (moveIndex % 2 === 1) {
-                        this.capturedPieces.player.pop();
-                    } else {
-                        this.capturedPieces.opponent.pop();
+                if (undoResult) {
+                    finalBoard = undoResult.board;
+                    
+                    if (undoResult.move && undoResult.move.capturedPiece) {
+                        const moveIndex = historySize - i;
+                        if (moveIndex % 2 === 1) {
+                            this.capturedPieces.player.pop();
+                        } else {
+                            this.capturedPieces.opponent.pop();
+                        }
                     }
                 }
             }
 
-            const lastState = this.history.boardStates[this.history.boardStates.length - 1];
-            if (lastState) {
-                this.board = lastState.clone();
+            if (finalBoard) {
+                this.board = finalBoard.clone();
             } else {
                 this.board = new Board();
             }
@@ -174,7 +178,7 @@
             return true;
         }
 
-        saveGame() {
+        async saveGame() {
             const saveData = {
                 version: '1.0.0',
                 date: new Date().toISOString(),
@@ -200,6 +204,55 @@
             const jsonString = JSON.stringify(saveData, null, 2);
 
             try {
+                let fileSaved = false;
+                
+                if ('showSaveFilePicker' in window) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: `${saveName}.json`,
+                            types: [
+                                {
+                                    description: 'JSON 存档文件',
+                                    accept: {
+                                        'application/json': ['.json'],
+                                    },
+                                },
+                            ],
+                        });
+                        
+                        const writable = await handle.createWritable();
+                        await writable.write(jsonString);
+                        await writable.close();
+                        
+                        fileSaved = true;
+                        console.log(`文件已保存到: ${handle.name}`);
+                    } catch (err) {
+                        if (err.name === 'AbortError') {
+                            console.log('用户取消了保存');
+                            alert('已取消保存');
+                            return;
+                        }
+                        console.error('文件保存失败:', err);
+                    }
+                }
+                
+                if (!fileSaved) {
+                    const choice = confirm(
+                        '您的浏览器不支持文件保存API。\n\n' +
+                        '您可以选择：\n' +
+                        '- 点击"确定"：下载存档文件并保存到浏览器缓存\n' +
+                        '- 点击"取消"：取消保存\n\n' +
+                        '是否继续保存？'
+                    );
+                    
+                    if (!choice) {
+                        console.log('用户取消了保存');
+                        return;
+                    }
+                    
+                    this.downloadSave(saveName + '.json', jsonString);
+                }
+                
                 let saves = this.getSavesFromStorage();
                 saves.unshift({
                     name: saveName,
@@ -212,8 +265,6 @@
                 }
                 
                 localStorage.setItem('chesstime_saves', JSON.stringify(saves));
-                
-                this.downloadSave(saveName + '.json', jsonString);
                 
                 this.ui.showSaveSuccess();
                 console.log(`游戏已保存为: ${saveName}`);
@@ -305,24 +356,31 @@
                 this.board = this.deserializeBoard(saveData.boardState);
 
                 this.history = new GameHistory();
-                if (saveData.historyMoves) {
+                if (saveData.historyMoves && saveData.historyMoves.length > 0) {
+                    const tempBoard = new Board();
+                    const tempHistory = new GameHistory();
+                    
                     for (const moveData of saveData.historyMoves) {
-                        const piece = this.board.getPiece(moveData.fromRow, moveData.fromCol);
+                        const piece = tempBoard.getPiece(moveData.fromRow, moveData.fromCol);
                         if (piece) {
+                            const capturedPiece = tempBoard.getPiece(moveData.toRow, moveData.toCol);
                             const move = new Move(
                                 moveData.fromRow,
                                 moveData.fromCol,
                                 moveData.toRow,
                                 moveData.toCol,
                                 piece,
-                                null,
+                                capturedPiece,
                                 moveData.isCastling,
                                 moveData.isEnPassant
                             );
-                            this.history.moves.push(move);
-                            this.history.boardStates.push(this.board.clone());
+                            
+                            tempHistory.addMove(move, tempBoard);
+                            tempBoard.makeMove(move);
                         }
                     }
+                    
+                    this.history = tempHistory;
                 }
 
                 this.ui.showScreen('gameScreen');
