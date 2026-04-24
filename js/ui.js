@@ -36,10 +36,16 @@
                 playerReverse: document.getElementById('player-reverse'),
                 playerSave: document.getElementById('player-save'),
                 playerLoad: document.getElementById('player-load'),
+                playerPause: document.getElementById('player-pause'),
                 restartGame: document.getElementById('restart-game'),
                 backToMenu: document.getElementById('back-to-menu'),
                 closeSaveModal: document.getElementById('close-save-modal'),
-                closeLoadModal: document.getElementById('close-load-modal')
+                closeLoadModal: document.getElementById('close-load-modal'),
+                resumeGame: document.getElementById('resume-game'),
+                pauseSave: document.getElementById('pause-save'),
+                pauseLoad: document.getElementById('pause-load'),
+                pauseSettings: document.getElementById('pause-settings'),
+                quitToMenu: document.getElementById('quit-to-menu')
             };
 
             this.difficultyButtons = document.querySelectorAll('.difficulty-btn');
@@ -60,7 +66,8 @@
             this.modals = {
                 gameOver: document.getElementById('game-over-modal'),
                 saveSuccess: document.getElementById('save-success-modal'),
-                loadGame: document.getElementById('load-game-modal')
+                loadGame: document.getElementById('load-game-modal'),
+                pause: document.getElementById('pause-modal')
             };
 
             this.saveList = document.getElementById('save-list');
@@ -93,6 +100,7 @@
             this.buttons.playerReverse.addEventListener('click', () => this.game.undoMove());
             this.buttons.playerSave.addEventListener('click', () => this.game.saveGame());
             this.buttons.playerLoad.addEventListener('click', () => this.showLoadModal());
+            this.buttons.playerPause.addEventListener('click', () => this.showModal('pause'));
 
             this.buttons.restartGame.addEventListener('click', () => {
                 this.hideModal('gameOver');
@@ -106,6 +114,23 @@
 
             this.buttons.closeSaveModal.addEventListener('click', () => this.hideModal('saveSuccess'));
             this.buttons.closeLoadModal.addEventListener('click', () => this.hideModal('loadGame'));
+            
+            this.buttons.resumeGame.addEventListener('click', () => this.hideModal('pause'));
+            this.buttons.pauseSave.addEventListener('click', () => {
+                this.hideModal('pause');
+                this.game.saveGame();
+            });
+            this.buttons.pauseLoad.addEventListener('click', () => {
+                this.hideModal('pause');
+                this.showLoadModal();
+            });
+            this.buttons.pauseSettings.addEventListener('click', () => {
+                alert('设置功能开发中...');
+            });
+            this.buttons.quitToMenu.addEventListener('click', () => {
+                this.hideModal('pause');
+                this.showScreen('mainMenu');
+            });
         }
 
         showScreen(screenName) {
