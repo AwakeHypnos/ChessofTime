@@ -628,3 +628,414 @@ body::before {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--cyber-purple);
 }
+
+/* 窗口大小警告 */
+.window-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1001;
+    background: linear-gradient(90deg, var(--cyber-red), var(--cyber-pink));
+    padding: 10px;
+    text-align: center;
+    box-shadow: 0 2px 20px var(--cyber-glow-red);
+}
+
+.window-warning.hidden {
+    display: none;
+}
+
+.warning-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.warning-icon {
+    font-size: 1.2rem;
+}
+
+.warning-text {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--cyber-white);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* 响应式棋盘布局 */
+.game-container.adapted-layout {
+    padding-top: 50px;
+}
+
+.chess-board.normal {
+    width: min(80vh, 80vw);
+    height: min(80vh, 80vw);
+}
+
+.chess-board.adapted {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.chess-board.adapted.portrait {
+    max-width: 95vw;
+    max-height: 60vh;
+}
+
+.chess-board.adapted.landscape {
+    max-width: 60vw;
+    max-height: 95vh;
+}
+
+.board-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+.chess-board.adapted .square {
+    aspect-ratio: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.chess-board.adapted .piece {
+    font-size: clamp(1rem, 4vw, 3rem);
+}
+
+.chess-board.adapted.portrait .piece {
+    font-size: clamp(1rem, 3.5vh, 3rem);
+}
+
+.chess-board.adapted.landscape .piece {
+    font-size: clamp(1rem, 3.5vw, 3rem);
+}
+
+.chess-board.adapted .square.valid-move::after {
+    width: clamp(10px, 2vw, 20px);
+    height: clamp(10px, 2vw, 20px);
+}
+
+/* 极端窄屏布局调整 */
+@media (max-aspect-ratio: 2/5) {
+    .opponent-area, .player-area {
+        padding: 5px 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .player-info {
+        flex-direction: row;
+        gap: 10px;
+    }
+    
+    .player-avatar {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .avatar-icon {
+        font-size: 1.5rem;
+    }
+    
+    .player-name {
+        font-size: 1rem;
+    }
+    
+    .player-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .control-btn {
+        padding: 5px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .captured-pieces {
+        max-width: 100%;
+        padding: 5px;
+    }
+    
+    .captured-piece {
+        font-size: 1.2rem;
+    }
+}
+
+/* 极端宽屏布局调整 */
+@media (min-aspect-ratio: 5/2) {
+    .game-container {
+        flex-direction: row;
+        align-items: stretch;
+    }
+    
+    .opponent-area, .player-area {
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 20px 10px;
+        min-width: 150px;
+        max-width: 200px;
+    }
+    
+    .player-info {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .player-avatar {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .avatar-icon {
+        font-size: 2rem;
+    }
+    
+    .player-controls {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .control-btn {
+        width: 100%;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .captured-pieces {
+        max-width: 100%;
+        justify-content: center;
+        padding: 8px;
+    }
+    
+    .board-area {
+        order: -1;
+    }
+}
+
+/* 小分辨率调整 */
+@media (max-width: 960px), (max-height: 960px) {
+    .game-title {
+        font-size: 2.5rem;
+    }
+    
+    .game-subtitle {
+        font-size: 1rem;
+        margin-bottom: 30px;
+    }
+    
+    .menu-container {
+        padding: 25px;
+    }
+    
+    .menu-btn {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+    
+    .difficulty-btn {
+        padding: 15px;
+        font-size: 1rem;
+    }
+    
+    .player-avatar {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .avatar-icon {
+        font-size: 2rem;
+    }
+    
+    .player-name {
+        font-size: 1.1rem;
+    }
+    
+    .control-btn {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .captured-piece {
+        font-size: 1.3rem;
+    }
+    
+    .modal-content {
+        padding: 25px;
+    }
+    
+    .game-result {
+        font-size: 2rem;
+    }
+    
+    .result-message {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 768px), (max-height: 768px) {
+    .game-title {
+        font-size: 2rem;
+    }
+    
+    .menu-container {
+        padding: 20px;
+    }
+    
+    .menu-btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+    
+    .difficulty-buttons {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .difficulty-btn {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+    
+    .player-avatar {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .avatar-icon {
+        font-size: 1.5rem;
+    }
+    
+    .player-name {
+        font-size: 1rem;
+    }
+    
+    .control-btn {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+    }
+    
+    .light-label {
+        font-size: 0.65rem;
+    }
+    
+    .checkmate-light::before,
+    .stalemate-light::before {
+        width: 15px;
+        height: 15px;
+    }
+    
+    .status-lights {
+        gap: 10px;
+    }
+    
+    .player-controls {
+        gap: 10px;
+    }
+    
+    .captured-piece {
+        font-size: 1.1rem;
+    }
+    
+    .modal-content {
+        padding: 20px;
+    }
+    
+    .game-result {
+        font-size: 1.5rem;
+    }
+    
+    .result-message {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px), (max-height: 480px) {
+    .game-title {
+        font-size: 1.5rem;
+    }
+    
+    .game-subtitle {
+        font-size: 0.85rem;
+        margin-bottom: 20px;
+    }
+    
+    .menu-container {
+        padding: 15px;
+    }
+    
+    .menu-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+    }
+    
+    .difficulty-btn {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+    
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .avatar-icon {
+        font-size: 1.2rem;
+    }
+    
+    .player-name {
+        font-size: 0.9rem;
+    }
+    
+    .control-btn {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+    
+    .light-label {
+        display: none;
+    }
+    
+    .status-lights {
+        gap: 8px;
+    }
+    
+    .player-controls {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .captured-piece {
+        font-size: 1rem;
+    }
+    
+    .modal-content {
+        padding: 15px;
+    }
+    
+    .game-result {
+        font-size: 1.3rem;
+    }
+    
+    .result-message {
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

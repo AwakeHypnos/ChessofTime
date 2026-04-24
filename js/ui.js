@@ -67,6 +67,9 @@
             this.modalSaveList = document.getElementById('modal-save-list');
             this.gameResult = document.getElementById('game-result');
             this.gameResultMessage = document.getElementById('game-result-message');
+            
+            this.windowWarning = document.getElementById('window-warning');
+            this.gameContainer = document.querySelector('.game-container');
         }
 
         initEventListeners() {
@@ -347,8 +350,83 @@
             this.updateStatusLights();
             this.updateCapturedPieces();
             this.renderBoard();
+            this.checkWindowSize();
+        }
+
+        checkWindowSize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const aspectRatio = width / height;
+
+            const isResolutionOK = (width >= 1280 && height >= 960) || (width >= 960 && height >= 1280);
+            const isRatioOK = aspectRatio >= 0.4 && aspectRatio <= 2.5;
+
+            const needsAdaptation = !isResolutionOK || !isRatioOK;
+
+            if (needsAdaptation) {
+                this.showWindowWarning();
+                this.applyAdaptedLayout();
+            } else {
+                this.hideWindowWarning();
+                this.applyNormalLayout();
+            }
+        }
+
+        showWindowWarning() {
+            if (this.windowWarning) {
+                this.windowWarning.classList.remove('hidden');
+            }
+        }
+
+        hideWindowWarning() {
+            if (this.windowWarning) {
+                this.windowWarning.classList.add('hidden');
+            }
+        }
+
+        applyAdaptedLayout() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const aspectRatio = width / height;
+
+            if (this.chessBoard) {
+                this.chessBoard.classList.remove('normal');
+                this.chessBoard.classList.add('adapted');
+                this.chessBoard.classList.remove('portrait', 'landscape');
+
+                if (aspectRatio < 1) {
+                    this.chessBoard.classList.add('portrait');
+                } else {
+                    this.chessBoard.classList.add('landscape');
+                }
+            }
+
+            if (this.gameContainer) {
+                this.gameContainer.classList.add('adapted-layout');
+            }
+
+            this.renderBoard();
+        }
+
+        applyNormalLayout() {
+            if (this.chessBoard) {
+                this.chessBoard.classList.remove('adapted', 'portrait', 'landscape');
+                this.chessBoard.classList.add('normal');
+            }
+
+            if (this.gameContainer) {
+                this.gameContainer.classList.remove('adapted-layout');
+            }
+
+            this.renderBoard();
         }
     }
 
     window.GameUI = GameUI;
+
+    window.addEventListener('resize', () => {
+        if (window.chessGame && window.chessGame.ui) {
+            window.chessGame.ui.checkWindowSize();
+        }
+    });
 })();

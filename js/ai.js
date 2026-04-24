@@ -83,28 +83,28 @@
     // AI难度配置
     const DifficultyConfig = {
         easy: {
-            depth: 1,
+            depth: 2,
             randomness: 0.4,
             useQuiescence: false,
             quiescenceDepth: 0
         },
         medium: {
-            depth: 2,
+            depth: 3,
             randomness: 0.2,
-            useQuiescence: false,
-            quiescenceDepth: 0
+            useQuiescence: true,
+            quiescenceDepth: 1
         },
         hard: {
-            depth: 2,
+            depth: 4,
             randomness: 0.05,
             useQuiescence: true,
-            quiescenceDepth: 2
+            quiescenceDepth: 3
         },
         master: {
-            depth: 3,
+            depth: 5,
             randomness: 0,
             useQuiescence: true,
-            quiescenceDepth: 2
+            quiescenceDepth: 4
         }
     };
 
@@ -225,7 +225,7 @@
         minimax(board, depth, alpha, beta, maximizingPlayer) {
             if (depth === 0 || board.isGameOver()) {
                 if (this.config.useQuiescence) {
-                    return this.quiescence(board, alpha, beta);
+                    return this.quiescence(board, alpha, beta, maximizingPlayer);
                 }
                 return this.evaluateBoard(board);
             }
@@ -267,7 +267,7 @@
             }
         }
 
-        quiescence(board, alpha, beta, depthLeft) {
+        quiescence(board, alpha, beta, maximizingPlayer, depthLeft) {
             const maxQuiescenceDepth = this.config.quiescenceDepth || 2;
             
             if (depthLeft === undefined) {
@@ -276,32 +276,51 @@
             
             const standPat = this.evaluateBoard(board);
             
-            if (standPat >= beta) return beta;
-            if (alpha < standPat) alpha = standPat;
-
-            if (depthLeft <= 0) {
-                return alpha;
+            if (maximizingPlayer) {
+                if (standPat >= beta) return beta;
+                if (alpha < standPat) alpha = standPat;
+            } else {
+                if (standPat <= alpha) return alpha;
+                if (beta > standPat) beta = standPat;
             }
 
-            const moves = board.getAllLegalMoves(Color.BLACK);
+            if (depthLeft <= 0) {
+                return standPat;
+            }
+
+            const color = maximizingPlayer ? Color.BLACK : Color.WHITE;
+            const moves = board.getAllLegalMoves(color);
             const captures = moves.filter(m => m.capturedPiece);
             
             if (captures.length === 0) {
-                return alpha;
+                return standPat;
             }
             
             this.orderMoves(board, captures);
 
-            for (const move of captures) {
-                const boardClone = board.clone();
-                boardClone.makeMove(move, true);
-                const score = -this.quiescence(boardClone, -beta, -alpha, depthLeft - 1);
-                
-                if (score >= beta) return beta;
-                if (score > alpha) alpha = score;
+            if (maximizingPlayer) {
+                let maxEval = -Infinity;
+                for (const move of captures) {
+                    const boardClone = board.clone();
+                    boardClone.makeMove(move, true);
+                    const score = this.quiescence(boardClone, alpha, beta, false, depthLeft - 1);
+                    maxEval = Math.max(maxEval, score);
+                    alpha = Math.max(alpha, score);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (const move of captures) {
+                    const boardClone = board.clone();
+                    boardClone.makeMove(move, true);
+                    const score = this.quiescence(boardClone, alpha, beta, true, depthLeft - 1);
+                    minEval = Math.min(minEval, score);
+                    beta = Math.min(beta, score);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
             }
-
-            return alpha;
         }
 
         orderMoves(board, moves) {
