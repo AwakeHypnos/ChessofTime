@@ -499,25 +499,25 @@ class Board {
             this.grid[toRow][toCol].hasMoved = true;
         }
 
+        if (piece.type === PieceType.KING) {
+            this.castlingRights[piece.color].kingSide = false;
+            this.castlingRights[piece.color].queenSide = false;
+        }
+        if (piece.type === PieceType.ROOK) {
+            if (fromCol === 0) {
+                this.castlingRights[piece.color].queenSide = false;
+            }
+            if (fromCol === 7) {
+                this.castlingRights[piece.color].kingSide = false;
+            }
+        }
+
         if (!isSimulation) {
             if (piece.type === PieceType.PAWN && Math.abs(toRow - fromRow) === 2) {
                 const enPassantRow = piece.color === Color.WHITE ? fromRow - 1 : fromRow + 1;
                 this.enPassantTarget = { row: enPassantRow, col: fromCol };
             } else {
                 this.enPassantTarget = null;
-            }
-
-            if (piece.type === PieceType.KING) {
-                this.castlingRights[piece.color].kingSide = false;
-                this.castlingRights[piece.color].queenSide = false;
-            }
-            if (piece.type === PieceType.ROOK) {
-                if (fromCol === 0) {
-                    this.castlingRights[piece.color].queenSide = false;
-                }
-                if (fromCol === 7) {
-                    this.castlingRights[piece.color].kingSide = false;
-                }
             }
 
             if (piece.type === PieceType.PAWN || move.capturedPiece) {
