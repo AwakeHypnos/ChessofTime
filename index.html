@@ -119,6 +119,7 @@
                                 <button id="player-reverse" class="control-btn reverse-btn">悔棋</button>
                                 <button id="player-save" class="control-btn save-btn">存档</button>
                                 <button id="player-load" class="control-btn load-btn">读档</button>
+                                <button id="player-pause" class="control-btn pause-btn">暂停</button>
                                 <div class="status-lights">
                                     <div id="player-checkmate" class="status-light checkmate-light">
                                         <span class="light-label">Checkmate</span>
@@ -167,6 +168,20 @@
                         </div>
                         <div class="modal-buttons">
                             <button id="close-load-modal" class="menu-btn">取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 暂停菜单弹窗 -->
+                <div id="pause-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <h2 class="game-result">游戏暂停</h2>
+                        <div class="pause-menu-buttons">
+                            <button id="resume-game" class="menu-btn">继续游戏</button>
+                            <button id="pause-save" class="menu-btn">存档</button>
+                            <button id="pause-load" class="menu-btn">读档</button>
+                            <button id="pause-settings" class="menu-btn">设置</button>
+                            <button id="quit-to-menu" class="menu-btn">返回主菜单</button>
                         </div>
                     </div>
                 </div>

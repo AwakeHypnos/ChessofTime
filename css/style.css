@@ -371,15 +371,47 @@ body::before {
     box-shadow: none;
 }
 
-.save-btn {
+.pause-btn {
     border-color: var(--cyber-yellow);
     color: var(--cyber-yellow);
 }
 
-.save-btn:hover {
+.pause-btn:hover {
     background: var(--cyber-yellow);
     color: var(--cyber-black);
     box-shadow: 0 0 15px var(--cyber-glow-yellow);
+}
+
+/* 暂停菜单 */
+.pause-menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.pause-menu-buttons .menu-btn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.pause-menu-buttons .menu-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px var(--cyber-glow-cyan);
+}
+
+#quit-to-menu {
+    border-color: var(--cyber-red);
+    color: var(--cyber-red);
+    margin-top: 20px;
+}
+
+#quit-to-menu:hover {
+    background: var(--cyber-red);
+    color: var(--cyber-white);
+    box-shadow: 0 0 15px var(--cyber-glow-red);
 }
 
 .load-btn {
