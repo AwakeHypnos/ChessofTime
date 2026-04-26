@@ -114,6 +114,10 @@
         }
 
         setDifficulty(difficulty) {
+            if (difficulty === 'hard' || difficulty === 'master') {
+                console.warn(`难度 ${difficulty} 已暂时禁用，使用中等难度替代`);
+                difficulty = 'medium';
+            }
             this.difficulty = difficulty;
             this.config = DifficultyConfig[difficulty];
         }

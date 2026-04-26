@@ -39,12 +39,33 @@ const PieceSymbols = {
     }
 };
 
+// 棋子状态枚举
+const PieceStatus = {
+    NORMAL: 'normal',
+    SPECTATOR: 'spectator',
+    BANISHED: 'banished'
+};
+
+// 时间线类型
+const TimelineType = {
+    SINGLE: 'single',
+    SPLIT: 'split'
+};
+
+// 棋盘时间标识
+const BoardTime = {
+    PRESENT: 'present',
+    PAST: 'past'
+};
+
 // 棋子类
 class Piece {
     constructor(type, color) {
         this.type = type;
         this.color = color;
         this.hasMoved = false;
+        this.status = PieceStatus.NORMAL;
+        this.isFromTimeTravel = false;
     }
 
     getSymbol() {
@@ -54,9 +75,35 @@ class Piece {
     clone() {
         const piece = new Piece(this.type, this.color);
         piece.hasMoved = this.hasMoved;
+        piece.status = this.status;
+        piece.isFromTimeTravel = this.isFromTimeTravel;
         return piece;
     }
+
+    markAsSpectator() {
+        this.status = PieceStatus.SPECTATOR;
+    }
+
+    markAsBanished() {
+        this.status = PieceStatus.BANISHED;
+    }
+
+    isSpectator() {
+        return this.status === PieceStatus.SPECTATOR;
+    }
+
+    isBanished() {
+        return this.status === PieceStatus.BANISHED;
+    }
 }
+
+// 移动类型枚举
+const MoveType = {
+    NORMAL: 'normal',
+    TIME_TRAVEL: 'time_travel',
+    CAPTURE_IN_PAST: 'capture_in_past',
+    CAPTURE_IN_PRESENT: 'capture_in_present'
+};
 
 // 移动类
 class Move {
@@ -70,12 +117,23 @@ class Move {
         this.isCastling = isCastling;
         this.isEnPassant = isEnPassant;
         this.promotionType = promotionType;
+        this.moveType = MoveType.NORMAL;
+    }
+}
+
+// 时间移动类
+class TimeTravelMove extends Move {
+    constructor(fromRow, fromCol, toRow, toCol, piece, targetTime) {
+        super(fromRow, fromCol, toRow, toCol, piece, null, false, false, null);
+        this.moveType = MoveType.TIME_TRAVEL;
+        this.targetTime = targetTime;
+        this.isSpectatorMove = true;
     }
 }
 
 // 棋盘类
 class Board {
-    constructor() {
+    constructor(boardTime = BoardTime.PRESENT) {
         this.grid = this.createEmptyBoard();
         this.setupInitialPosition();
         this.enPassantTarget = null;
@@ -85,6 +143,68 @@ class Board {
         };
         this.halfMoveClock = 0;
         this.fullMoveNumber = 1;
+        this.boardTime = boardTime;
+        this.linkedBoard = null;
+        this.timeTravelMoves = [];
+    }
+
+    setBoardTime(boardTime) {
+        this.boardTime = boardTime;
+    }
+
+    getBoardTime() {
+        return this.boardTime;
+    }
+
+    setLinkedBoard(board) {
+        this.linkedBoard = board;
+    }
+
+    getLinkedBoard() {
+        return this.linkedBoard;
+    }
+
+    isPastBoard() {
+        return this.boardTime === BoardTime.PAST;
+    }
+
+    isPresentBoard() {
+        return this.boardTime === BoardTime.PRESENT;
+    }
+
+    getTimeTravelMoves(row, col) {
+        const piece = this.getPiece(row, col);
+        if (!piece || piece.isSpectator() || piece.isBanished()) {
+            return [];
+        }
+
+        if (this.isPastBoard()) {
+            return [];
+        }
+
+        const moves = [];
+        const allMoves = this.getPieceMoves(row, col);
+        
+        for (const move of allMoves) {
+            const targetPiece = this.getPiece(move.toRow, move.toCol);
+            if (!targetPiece) {
+                const timeMove = new TimeTravelMove(
+                    move.fromRow, 
+                    move.fromCol, 
+                    move.toRow, 
+                    move.toCol, 
+                    piece,
+                    BoardTime.PAST
+                );
+                moves.push(timeMove);
+            }
+        }
+
+        return moves;
+    }
+
+    isTimeTravelMove(move) {
+        return move.moveType === MoveType.TIME_TRAVEL;
     }
 
     createEmptyBoard() {
@@ -461,8 +581,18 @@ class Board {
     }
 
     makeMove(move, isSimulation = false) {
-        const { fromRow, fromCol, toRow, toCol, piece, isCastling, isEnPassant, promotionType } = move;
+        const { fromRow, fromCol, toRow, toCol, piece, isCastling, isEnPassant, promotionType, moveType } = move;
         
+        if (moveType === MoveType.TIME_TRAVEL) {
+            return this.makeTimeTravelMove(move, isSimulation);
+        }
+
+        const capturedPiece = move.capturedPiece;
+        
+        if (capturedPiece && this.isPastBoard() && this.linkedBoard) {
+            this.propagateCaptureToPresent(capturedPiece);
+        }
+
         if (isCastling) {
             const kingRow = fromRow;
             const isKingSide = toCol === 6;
@@ -484,6 +614,10 @@ class Board {
         } else if (isEnPassant) {
             const capturedPawnRow = piece.color === Color.WHITE ? toRow + 1 : toRow - 1;
             const capturedPawn = this.grid[capturedPawnRow][toCol];
+            
+            if (capturedPawn && this.isPastBoard() && this.linkedBoard) {
+                this.propagateCaptureToPresent(capturedPawn);
+            }
             
             this.grid[toRow][toCol] = this.grid[fromRow][fromCol];
             this.grid[fromRow][fromCol] = null;
@@ -528,7 +662,7 @@ class Board {
                 this.enPassantTarget = null;
             }
 
-            if (piece.type === PieceType.PAWN || move.capturedPiece) {
+            if (piece.type === PieceType.PAWN || capturedPiece) {
                 this.halfMoveClock = 0;
             } else {
                 this.halfMoveClock++;
@@ -536,6 +670,70 @@ class Board {
 
             if (piece.color === Color.BLACK) {
                 this.fullMoveNumber++;
+            }
+        }
+    }
+
+    makeTimeTravelMove(move, isSimulation = false) {
+        const { fromRow, fromCol, toRow, toCol, piece, targetTime } = move;
+        
+        if (!this.isPresentBoard() || !this.linkedBoard) {
+            return false;
+        }
+
+        const pastBoard = this.linkedBoard;
+        
+        const movingPiece = this.getPiece(fromRow, fromCol);
+        if (!movingPiece) {
+            return false;
+        }
+
+        const targetInPast = pastBoard.getPiece(toRow, toCol);
+        if (targetInPast) {
+            return false;
+        }
+
+        const spectatorPiece = movingPiece.clone();
+        spectatorPiece.markAsSpectator();
+        spectatorPiece.isFromTimeTravel = true;
+
+        this.setPiece(fromRow, fromCol, null);
+        pastBoard.setPiece(toRow, toCol, spectatorPiece);
+
+        if (!isSimulation) {
+            this.timeTravelMoves.push({
+                move: move,
+                piece: movingPiece,
+                targetPosition: { row: toRow, col: toCol }
+            });
+        }
+
+        return true;
+    }
+
+    propagateCaptureToPresent(capturedPiece) {
+        if (!this.linkedBoard || !this.isPastBoard()) {
+            return;
+        }
+
+        const presentBoard = this.linkedBoard;
+
+        if (capturedPiece.isSpectator()) {
+            capturedPiece.markAsBanished();
+            return;
+        }
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const presentPiece = presentBoard.getPiece(row, col);
+                if (presentPiece && 
+                    presentPiece.type === capturedPiece.type && 
+                    presentPiece.color === capturedPiece.color &&
+                    !presentPiece.isSpectator() &&
+                    !presentPiece.isFromTimeTravel) {
+                    presentBoard.setPiece(row, col, null);
+                    return;
+                }
             }
         }
     }
@@ -595,13 +793,204 @@ class GameHistory {
     }
 }
 
+// 积分配置
+const ScoreConfig = {
+    PAST_CHECKMATE: 2.0,
+    PAST_STALEMATE: 1.0,
+    PRESENT_CHECKMATE: 1.5,
+    PRESENT_STALEMATE: 1.0
+};
+
+// 时间线管理器
+class TimelineManager {
+    constructor() {
+        this.timelineType = TimelineType.SINGLE;
+        this.presentBoard = new Board(BoardTime.PRESENT);
+        this.pastBoard = null;
+        this.activeBoard = this.presentBoard;
+        this.scores = {
+            player: 0,
+            ai: 0
+        };
+        this.banishedPieces = [];
+    }
+
+    isSplit() {
+        return this.timelineType === TimelineType.SPLIT;
+    }
+
+    splitTimeline() {
+        if (this.isSplit()) {
+            return false;
+        }
+
+        this.pastBoard = this.presentBoard.clone();
+        this.pastBoard.setBoardTime(BoardTime.PAST);
+        
+        this.presentBoard.setLinkedBoard(this.pastBoard);
+        this.pastBoard.setLinkedBoard(this.presentBoard);
+
+        this.timelineType = TimelineType.SPLIT;
+        this.activeBoard = this.pastBoard;
+
+        return true;
+    }
+
+    mergeTimeline() {
+        if (!this.isSplit()) {
+            return false;
+        }
+
+        this.presentBoard.setLinkedBoard(null);
+        this.pastBoard = null;
+        this.timelineType = TimelineType.SINGLE;
+        this.activeBoard = this.presentBoard;
+
+        return true;
+    }
+
+    getActiveBoard() {
+        return this.activeBoard;
+    }
+
+    setActiveBoard(boardTime) {
+        if (boardTime === BoardTime.PAST && this.pastBoard) {
+            this.activeBoard = this.pastBoard;
+            return true;
+        } else if (boardTime === BoardTime.PRESENT) {
+            this.activeBoard = this.presentBoard;
+            return true;
+        }
+        return false;
+    }
+
+    getPastBoard() {
+        return this.pastBoard;
+    }
+
+    getPresentBoard() {
+        return this.presentBoard;
+    }
+
+    canTimeTravel() {
+        return !this.isSplit();
+    }
+
+    performTimeTravel(fromRow, fromCol, toRow, toCol) {
+        if (!this.canTimeTravel()) {
+            return false;
+        }
+
+        const piece = this.presentBoard.getPiece(fromRow, fromCol);
+        if (!piece || piece.isSpectator() || piece.isBanished()) {
+            return false;
+        }
+
+        const targetPiece = this.presentBoard.getPiece(toRow, toCol);
+        if (targetPiece) {
+            return false;
+        }
+
+        this.splitTimeline();
+
+        const timeMove = new TimeTravelMove(
+            fromRow, fromCol, toRow, toCol, piece, BoardTime.PAST
+        );
+
+        return this.presentBoard.makeTimeTravelMove(timeMove, false);
+    }
+
+    calculateEndGameScores() {
+        const scores = { player: 0, ai: 0 };
+
+        if (this.isSplit()) {
+            const pastPlayerCM = this.pastBoard.isCheckmate(Color.WHITE);
+            const pastPlayerSM = this.pastBoard.isStalemate(Color.WHITE);
+            const pastAICM = this.pastBoard.isCheckmate(Color.BLACK);
+            const pastAISM = this.pastBoard.isStalemate(Color.BLACK);
+
+            if (pastPlayerCM) {
+                scores.ai += ScoreConfig.PAST_CHECKMATE;
+            }
+            if (pastPlayerSM) {
+                scores.player += ScoreConfig.PAST_STALEMATE * 0.5;
+                scores.ai += ScoreConfig.PAST_STALEMATE * 0.5;
+            }
+            if (pastAICM) {
+                scores.player += ScoreConfig.PAST_CHECKMATE;
+            }
+            if (pastAISM) {
+                scores.player += ScoreConfig.PAST_STALEMATE * 0.5;
+                scores.ai += ScoreConfig.PAST_STALEMATE * 0.5;
+            }
+        }
+
+        const presentPlayerCM = this.presentBoard.isCheckmate(Color.WHITE);
+        const presentPlayerSM = this.presentBoard.isStalemate(Color.WHITE);
+        const presentAICM = this.presentBoard.isCheckmate(Color.BLACK);
+        const presentAISM = this.presentBoard.isStalemate(Color.BLACK);
+
+        if (presentPlayerCM) {
+            scores.ai += ScoreConfig.PRESENT_CHECKMATE;
+        }
+        if (presentPlayerSM) {
+            scores.player += ScoreConfig.PRESENT_STALEMATE * 0.5;
+            scores.ai += ScoreConfig.PRESENT_STALEMATE * 0.5;
+        }
+        if (presentAICM) {
+            scores.player += ScoreConfig.PRESENT_CHECKMATE;
+        }
+        if (presentAISM) {
+            scores.player += ScoreConfig.PRESENT_STALEMATE * 0.5;
+            scores.ai += ScoreConfig.PRESENT_STALEMATE * 0.5;
+        }
+
+        this.scores = scores;
+        return scores;
+    }
+
+    getWinnerByScore() {
+        const scores = this.calculateEndGameScores();
+        if (scores.player > scores.ai) {
+            return Color.WHITE;
+        } else if (scores.ai > scores.player) {
+            return Color.BLACK;
+        }
+        return null;
+    }
+
+    addBanishedPiece(piece) {
+        this.banishedPieces.push(piece);
+    }
+
+    getBanishedPieces() {
+        return this.banishedPieces;
+    }
+
+    reset() {
+        this.timelineType = TimelineType.SINGLE;
+        this.presentBoard = new Board(BoardTime.PRESENT);
+        this.pastBoard = null;
+        this.activeBoard = this.presentBoard;
+        this.scores = { player: 0, ai: 0 };
+        this.banishedPieces = [];
+    }
+}
+
 // 导出到全局
 window.ChessTime = {
     PieceType,
     Color,
     PieceSymbols,
+    PieceStatus,
+    TimelineType,
+    BoardTime,
+    MoveType,
+    ScoreConfig,
     Piece,
     Move,
+    TimeTravelMove,
     Board,
-    GameHistory
+    GameHistory,
+    TimelineManager
 };

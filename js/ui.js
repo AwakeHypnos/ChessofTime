@@ -1,17 +1,31 @@
 (function() {
     /**
      * ChessTime - UI交互逻辑
-     * 处理界面渲染和用户交互
+     * 处理界面渲染和用户交互 - 支持时间旅行规则
      */
 
-    const { PieceType, Color, Board, Move, GameHistory, PieceSymbols } = window.ChessTime;
+    const { 
+        PieceType, 
+        Color, 
+        Board, 
+        Move, 
+        GameHistory, 
+        PieceSymbols,
+        PieceStatus,
+        TimelineType,
+        BoardTime,
+        MoveType,
+        TimelineManager
+    } = window.ChessTime;
 
     class GameUI {
         constructor(game) {
             this.game = game;
             this.selectedSquare = null;
             this.validMoves = [];
+            this.timeTravelMoves = [];
             this.lastMove = null;
+            this.isTimeTravelMode = false;
             this.initElements();
             this.initEventListeners();
         }
@@ -45,22 +59,42 @@
                 pauseSave: document.getElementById('pause-save'),
                 pauseLoad: document.getElementById('pause-load'),
                 pauseSettings: document.getElementById('pause-settings'),
-                quitToMenu: document.getElementById('quit-to-menu')
+                quitToMenu: document.getElementById('quit-to-menu'),
+                timeTravelMode: document.getElementById('time-travel-mode')
             };
 
             this.difficultyButtons = document.querySelectorAll('.difficulty-btn');
-            this.chessBoard = document.getElementById('chess-board');
             
+            this.chessBoards = {
+                present: document.getElementById('present-chess-board'),
+                past: document.getElementById('past-chess-board')
+            };
+
+            this.boardContainers = {
+                present: document.getElementById('present-board-container'),
+                past: document.getElementById('past-board-container')
+            };
+
+            this.timelineDivider = document.getElementById('timeline-divider');
+
             this.statusLights = {
                 playerCheckmate: document.getElementById('player-checkmate'),
                 playerStalemate: document.getElementById('player-stalemate'),
                 opponentCheckmate: document.getElementById('opponent-checkmate'),
-                opponentStalemate: document.getElementById('opponent-stalemate')
+                opponentStalemate: document.getElementById('opponent-stalemate'),
+                pastPlayerCheckmate: document.getElementById('past-player-checkmate'),
+                pastPlayerStalemate: document.getElementById('past-player-stalemate'),
+                presentPlayerCheckmate: document.getElementById('present-player-checkmate'),
+                presentPlayerStalemate: document.getElementById('present-player-stalemate')
             };
 
             this.capturedPieces = {
                 player: document.getElementById('player-captured'),
-                opponent: document.getElementById('opponent-captured')
+                opponent: document.getElementById('opponent-captured'),
+                pastPlayer: document.getElementById('past-player-captured'),
+                pastOpponent: document.getElementById('past-opponent-captured'),
+                presentPlayer: document.getElementById('present-player-captured'),
+                presentOpponent: document.getElementById('present-opponent-captured')
             };
 
             this.modals = {
@@ -77,6 +111,18 @@
             
             this.windowWarning = document.getElementById('window-warning');
             this.gameContainer = document.querySelector('.game-container');
+
+            this.timelineElements = {
+                mode: document.getElementById('timeline-mode'),
+                playerScore: document.getElementById('player-score'),
+                aiScore: document.getElementById('ai-score'),
+                pastTurnIndicator: document.getElementById('past-turn-indicator'),
+                presentTurnIndicator: document.getElementById('present-turn-indicator')
+            };
+
+            this.banishedArea = document.getElementById('banished-area');
+            this.banishedPieces = document.getElementById('banished-pieces');
+            this.timeTravelHint = document.getElementById('time-travel-hint');
         }
 
         initEventListeners() {
@@ -101,6 +147,8 @@
             this.buttons.playerSave.addEventListener('click', () => this.game.saveGame());
             this.buttons.playerLoad.addEventListener('click', () => this.showLoadModal());
             this.buttons.playerPause.addEventListener('click', () => this.showModal('pause'));
+
+            this.buttons.timeTravelMode.addEventListener('click', () => this.toggleTimeTravelMode());
 
             this.buttons.restartGame.addEventListener('click', () => {
                 this.hideModal('gameOver');
@@ -133,6 +181,28 @@
             });
         }
 
+        toggleTimeTravelMode() {
+            if (!this.game.canTimeTravel()) {
+                alert('时间线已分裂，无法再次进行时间旅行！');
+                return;
+            }
+
+            this.isTimeTravelMode = !this.isTimeTravelMode;
+            
+            if (this.isTimeTravelMode) {
+                this.buttons.timeTravelMode.classList.add('active');
+                this.timeTravelHint.classList.remove('hidden');
+            } else {
+                this.buttons.timeTravelMode.classList.remove('active');
+                this.timeTravelHint.classList.add('hidden');
+            }
+
+            this.selectedSquare = null;
+            this.validMoves = [];
+            this.timeTravelMoves = [];
+            this.renderAllBoards();
+        }
+
         showScreen(screenName) {
             Object.values(this.screens).forEach(screen => screen.classList.remove('active'));
             this.screens[screenName].classList.add('active');
@@ -147,8 +217,89 @@
             });
         }
 
-        renderBoard() {
-            this.chessBoard.innerHTML = '';
+        updateTimelineDisplay() {
+            const timelineManager = this.game.timelineManager;
+            
+            if (timelineManager.isSplit()) {
+                this.timelineElements.mode.textContent = '时间线分裂';
+                this.timelineElements.mode.classList.add('split');
+                this.boardContainers.past.classList.remove('hidden');
+                this.timelineDivider.classList.remove('hidden');
+                this.buttons.timeTravelMode.classList.add('disabled');
+                this.buttons.timeTravelMode.disabled = true;
+            } else {
+                this.timelineElements.mode.textContent = '单一时间线';
+                this.timelineElements.mode.classList.remove('split');
+                this.boardContainers.past.classList.add('hidden');
+                this.timelineDivider.classList.add('hidden');
+                this.buttons.timeTravelMode.classList.remove('disabled');
+                this.buttons.timeTravelMode.disabled = false;
+            }
+
+            this.updateScores();
+            this.updateTurnIndicators();
+        }
+
+        updateScores() {
+            const scores = this.game.timelineManager.calculateEndGameScores();
+            this.timelineElements.playerScore.textContent = scores.player.toFixed(1);
+            this.timelineElements.aiScore.textContent = scores.ai.toFixed(1);
+        }
+
+        updateTurnIndicators() {
+            const timelineManager = this.game.timelineManager;
+            
+            if (timelineManager.isSplit()) {
+                const activeBoard = timelineManager.getActiveBoard();
+                if (activeBoard.isPastBoard()) {
+                    this.timelineElements.pastTurnIndicator.classList.remove('hidden');
+                    this.timelineElements.presentTurnIndicator.classList.add('hidden');
+                } else {
+                    this.timelineElements.pastTurnIndicator.classList.add('hidden');
+                    this.timelineElements.presentTurnIndicator.classList.remove('hidden');
+                }
+            } else {
+                this.timelineElements.pastTurnIndicator.classList.add('hidden');
+                this.timelineElements.presentTurnIndicator.classList.add('hidden');
+            }
+        }
+
+        updateBanishedPieces() {
+            const banished = this.game.timelineManager.getBanishedPieces();
+            
+            if (banished.length === 0) {
+                this.banishedArea.classList.add('hidden');
+                return;
+            }
+
+            this.banishedArea.classList.remove('hidden');
+            this.banishedPieces.innerHTML = '';
+
+            banished.forEach(piece => {
+                const pieceElement = document.createElement('span');
+                pieceElement.className = 'banished-piece';
+                pieceElement.textContent = PieceSymbols[piece.color][piece.type];
+                this.banishedPieces.appendChild(pieceElement);
+            });
+        }
+
+        renderAllBoards() {
+            const timelineManager = this.game.timelineManager;
+            
+            if (timelineManager.isSplit()) {
+                this.renderBoard(timelineManager.getPastBoard(), this.chessBoards.past, BoardTime.PAST);
+                this.renderBoard(timelineManager.getPresentBoard(), this.chessBoards.present, BoardTime.PRESENT);
+            } else {
+                this.renderBoard(timelineManager.getPresentBoard(), this.chessBoards.present, BoardTime.PRESENT);
+            }
+
+            this.updateTimelineDisplay();
+        }
+
+        renderBoard(board, boardElement, boardTime = BoardTime.PRESENT) {
+            if (!boardElement) return;
+            
+            boardElement.innerHTML = '';
             
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
@@ -156,30 +307,49 @@
                     square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
                     square.dataset.row = row;
                     square.dataset.col = col;
+                    square.dataset.boardTime = boardTime;
                     
-                    const piece = this.game.board.getPiece(row, col);
+                    const piece = board.getPiece(row, col);
                     if (piece) {
                         const pieceElement = document.createElement('span');
-                        pieceElement.className = `piece ${piece.color}`;
+                        let pieceClass = `piece ${piece.color}`;
+                        if (piece.isSpectator()) {
+                            pieceClass += ' spectator';
+                        }
+                        pieceElement.className = pieceClass;
                         pieceElement.textContent = piece.getSymbol();
                         square.appendChild(pieceElement);
                     }
 
                     if (this.selectedSquare && 
                         this.selectedSquare.row === row && 
-                        this.selectedSquare.col === col) {
+                        this.selectedSquare.col === col &&
+                        this.selectedSquare.boardTime === boardTime) {
                         square.classList.add('selected');
                     }
 
-                    const isValidMove = this.validMoves.some(m => 
-                        m.toRow === row && m.toCol === col
-                    );
-                    if (isValidMove) {
-                        const targetPiece = this.game.board.getPiece(row, col);
-                        square.classList.add(targetPiece ? 'valid-capture' : 'valid-move');
+                    let isValidMove = false;
+                    let isTimeTravelMove = false;
+
+                    if (this.isTimeTravelMode && !this.game.timelineManager.isSplit()) {
+                        isTimeTravelMove = this.timeTravelMoves.some(m => 
+                            m.toRow === row && m.toCol === col
+                        );
+                        if (isTimeTravelMove) {
+                            square.classList.add('valid-move');
+                            square.style.boxShadow = 'inset 0 0 20px rgba(157, 78, 221, 0.6)';
+                        }
+                    } else {
+                        isValidMove = this.validMoves.some(m => 
+                            m.toRow === row && m.toCol === col
+                        );
+                        if (isValidMove) {
+                            const targetPiece = board.getPiece(row, col);
+                            square.classList.add(targetPiece ? 'valid-capture' : 'valid-move');
+                        }
                     }
 
-                    if (this.lastMove) {
+                    if (this.lastMove && this.lastMove.boardTime === boardTime) {
                         if (this.lastMove.fromRow === row && this.lastMove.fromCol === col) {
                             square.classList.add('last-move-from');
                         }
@@ -188,27 +358,49 @@
                         }
                     }
 
-                    square.addEventListener('click', () => this.handleSquareClick(row, col));
+                    square.addEventListener('click', () => this.handleSquareClick(row, col, boardTime));
                     
-                    this.chessBoard.appendChild(square);
+                    boardElement.appendChild(square);
                 }
             }
         }
 
-        handleSquareClick(row, col) {
-            if (this.game.gameOver || this.game.currentTurn !== Color.WHITE) {
+        handleSquareClick(row, col, boardTime) {
+            const timelineManager = this.game.timelineManager;
+            
+            if (this.game.gameOver) {
                 return;
             }
 
-            const piece = this.game.board.getPiece(row, col);
+            const activeBoard = timelineManager.getActiveBoard();
+            if (timelineManager.isSplit() && activeBoard.getBoardTime() !== boardTime) {
+                return;
+            }
+
+            const board = boardTime === BoardTime.PAST ? 
+                timelineManager.getPastBoard() : 
+                timelineManager.getPresentBoard();
+
+            if (!board) return;
+
+            if (this.isTimeTravelMode && !timelineManager.isSplit()) {
+                this.handleTimeTravelClick(row, col, board);
+                return;
+            }
+
+            if (this.game.currentTurn !== Color.WHITE) {
+                return;
+            }
+
+            const piece = board.getPiece(row, col);
 
             if (this.selectedSquare) {
-                const selectedPiece = this.game.board.getPiece(this.selectedSquare.row, this.selectedSquare.col);
+                const selectedPiece = board.getPiece(this.selectedSquare.row, this.selectedSquare.col);
                 
                 if (piece && piece.color === selectedPiece.color) {
-                    this.selectedSquare = { row, col };
-                    this.validMoves = this.game.board.getLegalMoves(row, col);
-                    this.renderBoard();
+                    this.selectedSquare = { row, col, boardTime };
+                    this.validMoves = board.getLegalMoves(row, col);
+                    this.renderAllBoards();
                     return;
                 }
 
@@ -217,59 +409,103 @@
                 );
 
                 if (move) {
-                    this.game.makeMove(move);
+                    this.game.makeMove(move, boardTime);
                     this.selectedSquare = null;
                     this.validMoves = [];
-                    this.lastMove = move;
-                    this.renderBoard();
+                    this.lastMove = { ...move, boardTime };
+                    this.renderAllBoards();
                     return;
                 }
 
                 this.selectedSquare = null;
                 this.validMoves = [];
-                this.renderBoard();
+                this.renderAllBoards();
                 return;
             }
 
-            if (piece && piece.color === Color.WHITE) {
-                this.selectedSquare = { row, col };
-                this.validMoves = this.game.board.getLegalMoves(row, col);
-                this.renderBoard();
+            if (piece && piece.color === Color.WHITE && !piece.isSpectator() && !piece.isBanished()) {
+                this.selectedSquare = { row, col, boardTime };
+                this.validMoves = board.getLegalMoves(row, col);
+                this.renderAllBoards();
+            }
+        }
+
+        handleTimeTravelClick(row, col, board) {
+            if (this.selectedSquare) {
+                const timeMove = this.timeTravelMoves.find(m => 
+                    m.toRow === row && m.toCol === col
+                );
+
+                if (timeMove) {
+                    const success = this.game.performTimeTravel(
+                        this.selectedSquare.row,
+                        this.selectedSquare.col,
+                        row,
+                        col
+                    );
+
+                    if (success) {
+                        this.selectedSquare = null;
+                        this.validMoves = [];
+                        this.timeTravelMoves = [];
+                        this.isTimeTravelMode = false;
+                        this.buttons.timeTravelMode.classList.remove('active');
+                        this.timeTravelHint.classList.add('hidden');
+                        this.lastMove = { ...timeMove, boardTime: BoardTime.PRESENT };
+                        this.renderAllBoards();
+                    }
+                    return;
+                }
+
+                this.selectedSquare = null;
+                this.validMoves = [];
+                this.timeTravelMoves = [];
+                this.renderAllBoards();
+                return;
+            }
+
+            const piece = board.getPiece(row, col);
+            if (piece && piece.color === Color.WHITE && !piece.isSpectator() && !piece.isBanished()) {
+                this.selectedSquare = { row, col, boardTime: BoardTime.PRESENT };
+                this.timeTravelMoves = board.getTimeTravelMoves(row, col);
+                this.renderAllBoards();
             }
         }
 
         updateStatusLights() {
-            const playerCheck = this.game.board.isInCheck(Color.WHITE);
-            const opponentCheck = this.game.board.isInCheck(Color.BLACK);
-            
-            const playerCheckmate = this.game.board.isCheckmate(Color.WHITE);
-            const opponentCheckmate = this.game.board.isCheckmate(Color.BLACK);
-            
-            const playerStalemate = this.game.board.isStalemate(Color.WHITE);
-            const opponentStalemate = this.game.board.isStalemate(Color.BLACK);
+            const timelineManager = this.game.timelineManager;
+            const presentBoard = timelineManager.getPresentBoard();
 
-            if (playerCheckmate) {
-                this.statusLights.playerCheckmate.classList.add('active');
-            } else {
-                this.statusLights.playerCheckmate.classList.remove('active');
+            const playerCheckmate = presentBoard.isCheckmate(Color.WHITE);
+            const opponentCheckmate = presentBoard.isCheckmate(Color.BLACK);
+            const playerStalemate = presentBoard.isStalemate(Color.WHITE);
+            const opponentStalemate = presentBoard.isStalemate(Color.BLACK);
+
+            this.updateStatusLight(this.statusLights.playerCheckmate, playerCheckmate);
+            this.updateStatusLight(this.statusLights.opponentCheckmate, opponentCheckmate);
+            this.updateStatusLight(this.statusLights.playerStalemate, playerStalemate);
+            this.updateStatusLight(this.statusLights.opponentStalemate, opponentStalemate);
+
+            if (timelineManager.isSplit()) {
+                const pastBoard = timelineManager.getPastBoard();
+                const pastPlayerCheckmate = pastBoard.isCheckmate(Color.WHITE);
+                const pastPlayerStalemate = pastBoard.isStalemate(Color.WHITE);
+                const presentPlayerCheckmate = presentBoard.isCheckmate(Color.WHITE);
+                const presentPlayerStalemate = presentBoard.isStalemate(Color.WHITE);
+
+                this.updateStatusLight(this.statusLights.pastPlayerCheckmate, pastPlayerCheckmate);
+                this.updateStatusLight(this.statusLights.pastPlayerStalemate, pastPlayerStalemate);
+                this.updateStatusLight(this.statusLights.presentPlayerCheckmate, presentPlayerCheckmate);
+                this.updateStatusLight(this.statusLights.presentPlayerStalemate, presentPlayerStalemate);
             }
+        }
 
-            if (opponentCheckmate) {
-                this.statusLights.opponentCheckmate.classList.add('active');
+        updateStatusLight(element, isActive) {
+            if (!element) return;
+            if (isActive) {
+                element.classList.add('active');
             } else {
-                this.statusLights.opponentCheckmate.classList.remove('active');
-            }
-
-            if (playerStalemate) {
-                this.statusLights.playerStalemate.classList.add('active');
-            } else {
-                this.statusLights.playerStalemate.classList.remove('active');
-            }
-
-            if (opponentStalemate) {
-                this.statusLights.opponentStalemate.classList.add('active');
-            } else {
-                this.statusLights.opponentStalemate.classList.remove('active');
+                element.classList.remove('active');
             }
         }
 
@@ -292,16 +528,29 @@
             });
         }
 
-        showGameOver(winner) {
-            if (winner === Color.WHITE) {
-                this.gameResult.textContent = '玩家获胜！';
-                this.gameResultMessage.textContent = '恭喜你战胜了AI对手！';
-            } else if (winner === Color.BLACK) {
-                this.gameResult.textContent = 'AI获胜！';
-                this.gameResultMessage.textContent = '再接再厉，下次一定能赢！';
+        showGameOver(winner, scores = null) {
+            if (scores) {
+                if (winner === Color.WHITE) {
+                    this.gameResult.textContent = '玩家获胜！';
+                    this.gameResultMessage.textContent = `积分: 玩家 ${scores.player} - AI ${scores.ai}`;
+                } else if (winner === Color.BLACK) {
+                    this.gameResult.textContent = 'AI获胜！';
+                    this.gameResultMessage.textContent = `积分: 玩家 ${scores.player} - AI ${scores.ai}`;
+                } else {
+                    this.gameResult.textContent = '平局！';
+                    this.gameResultMessage.textContent = `积分: 玩家 ${scores.player} - AI ${scores.ai}`;
+                }
             } else {
-                this.gameResult.textContent = '平局！';
-                this.gameResultMessage.textContent = '这是一场精彩的对局！';
+                if (winner === Color.WHITE) {
+                    this.gameResult.textContent = '玩家获胜！';
+                    this.gameResultMessage.textContent = '恭喜你战胜了AI对手！';
+                } else if (winner === Color.BLACK) {
+                    this.gameResult.textContent = 'AI获胜！';
+                    this.gameResultMessage.textContent = '再接再厉，下次一定能赢！';
+                } else {
+                    this.gameResult.textContent = '平局！';
+                    this.gameResultMessage.textContent = '这是一场精彩的对局！';
+                }
             }
             this.showModal('gameOver');
         }
@@ -371,10 +620,16 @@
         resetGameUI() {
             this.selectedSquare = null;
             this.validMoves = [];
+            this.timeTravelMoves = [];
             this.lastMove = null;
+            this.isTimeTravelMode = false;
+            this.buttons.timeTravelMode.classList.remove('active');
+            this.timeTravelHint.classList.add('hidden');
+            
             this.updateStatusLights();
             this.updateCapturedPieces();
-            this.renderBoard();
+            this.updateBanishedPieces();
+            this.renderAllBoards();
             this.checkWindowSize();
         }
 
@@ -414,36 +669,40 @@
             const height = window.innerHeight;
             const aspectRatio = width / height;
 
-            if (this.chessBoard) {
-                this.chessBoard.classList.remove('normal');
-                this.chessBoard.classList.add('adapted');
-                this.chessBoard.classList.remove('portrait', 'landscape');
+            Object.values(this.chessBoards).forEach(board => {
+                if (board) {
+                    board.classList.remove('normal');
+                    board.classList.add('adapted');
+                    board.classList.remove('portrait', 'landscape');
 
-                if (aspectRatio < 1) {
-                    this.chessBoard.classList.add('portrait');
-                } else {
-                    this.chessBoard.classList.add('landscape');
+                    if (aspectRatio < 1) {
+                        board.classList.add('portrait');
+                    } else {
+                        board.classList.add('landscape');
+                    }
                 }
-            }
+            });
 
             if (this.gameContainer) {
                 this.gameContainer.classList.add('adapted-layout');
             }
 
-            this.renderBoard();
+            this.renderAllBoards();
         }
 
         applyNormalLayout() {
-            if (this.chessBoard) {
-                this.chessBoard.classList.remove('adapted', 'portrait', 'landscape');
-                this.chessBoard.classList.add('normal');
-            }
+            Object.values(this.chessBoards).forEach(board => {
+                if (board) {
+                    board.classList.remove('adapted', 'portrait', 'landscape');
+                    board.classList.add('normal');
+                }
+            });
 
             if (this.gameContainer) {
                 this.gameContainer.classList.remove('adapted-layout');
             }
 
-            this.renderBoard();
+            this.renderAllBoards();
         }
     }
 
