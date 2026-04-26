@@ -50,7 +50,6 @@
                 playerSave: document.getElementById('player-save'),
                 playerLoad: document.getElementById('player-load'),
                 playerPause: document.getElementById('player-pause'),
-                playerReverse: document.getElementById('player-reverse'),
                 restartGame: document.getElementById('restart-game'),
                 backToMenu: document.getElementById('back-to-menu'),
                 closeSaveModal: document.getElementById('close-save-modal'),
@@ -149,7 +148,6 @@
             this.buttons.playerSave.addEventListener('click', () => this.game.saveGame());
             this.buttons.playerLoad.addEventListener('click', () => this.showLoadModal());
             this.buttons.playerPause.addEventListener('click', () => this.showModal('pause'));
-            this.buttons.playerReverse.addEventListener('click', () => this.game.undoMove());
 
             this.buttons.timeTravelMode.addEventListener('click', () => this.toggleTimeTravelMode());
 

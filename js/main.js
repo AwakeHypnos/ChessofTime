@@ -83,55 +83,21 @@
                 return false;
             }
 
-            const piece = this.board.getPiece(fromRow, fromCol);
-            if (!piece || piece.isSpectator() || piece.isBanished()) {
-                return false;
-            }
-
-            let pastBoardForValidation = null;
-            
-            if (this.history.size() > 0) {
-                const lastBoardState = this.history.boardStates[this.history.size() - 1];
-                pastBoardForValidation = lastBoardState;
-            } else {
-                pastBoardForValidation = this.board;
-            }
-
-            const targetPiece = pastBoardForValidation.getPiece(toRow, toCol);
-            if (targetPiece) {
-                console.log('目标位置在往昔棋盘中有棋子，无法时间旅行');
-                return false;
-            }
-
             this.savePreTimelineState();
 
-            const timelineManager = this.timelineManager;
-            
-            if (this.history.size() > 0) {
-                const lastBoardState = this.history.boardStates[this.history.size() - 1];
-                timelineManager.splitTimeline(lastBoardState);
-            } else {
-                timelineManager.splitTimeline();
-            }
-
-            const timeMove = new TimeTravelMove(
-                fromRow, fromCol, toRow, toCol, piece, BoardTime.PAST
-            );
-
-            const success = timelineManager.presentBoard.makeTimeTravelMove(timeMove, false);
+            const success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
             
             if (success) {
-                this.board = timelineManager.getPresentBoard();
+                this.board = this.timelineManager.getPresentBoard();
                 
-                const spectatorPiece = timelineManager.getPastBoard().getPiece(toRow, toCol);
-                const historyMove = new Move(fromRow, fromCol, toRow, toCol, piece, null);
-                historyMove.moveType = MoveType.TIME_TRAVEL;
-                this.history.addMove(historyMove, timelineManager.getPresentBoard());
+                const piece = this.timelineManager.getPastBoard().getPiece(toRow, toCol);
+                const timeMove = new Move(fromRow, fromCol, toRow, toCol, piece, null);
+                timeMove.moveType = MoveType.TIME_TRAVEL;
+                this.history.addMove(timeMove, this.timelineManager.getPresentBoard());
                 
                 this.setupTurnOrder(Color.WHITE);
                 
                 console.log('时间旅行成功！时间线已分裂。');
-                console.log('往昔棋盘基于上一回合状态创建。');
                 console.log('回合顺序：AI往昔 -> AI现在 -> 玩家往昔 -> 玩家现在');
             }
 
