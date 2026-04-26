@@ -33,6 +33,12 @@
                 player: [],
                 opponent: []
             };
+            
+            this.preTimelineState = null;
+            
+            this.turnOrder = [];
+            this.currentTurnIndex = 0;
+            
             this.ui = new GameUI(this);
             this.ui.updateDifficultySelection('medium');
             this.init();
@@ -59,6 +65,10 @@
                 player: [],
                 opponent: []
             };
+            this.preTimelineState = null;
+            this.turnOrder = [];
+            this.currentTurnIndex = 0;
+            
             this.ui.showScreen('gameScreen');
             this.ui.resetGameUI();
             console.log('游戏开始！玩家执白先行。');
@@ -73,14 +83,107 @@
                 return false;
             }
 
-            const success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
+            const piece = this.board.getPiece(fromRow, fromCol);
+            if (!piece || piece.isSpectator() || piece.isBanished()) {
+                return false;
+            }
+
+            let pastBoardForValidation = null;
+            
+            if (this.history.size() > 0) {
+                const lastBoardState = this.history.boardStates[this.history.size() - 1];
+                pastBoardForValidation = lastBoardState;
+            } else {
+                pastBoardForValidation = this.board;
+            }
+
+            const targetPiece = pastBoardForValidation.getPiece(toRow, toCol);
+            if (targetPiece) {
+                console.log('目标位置在往昔棋盘中有棋子，无法时间旅行');
+                return false;
+            }
+
+            this.savePreTimelineState();
+
+            const timelineManager = this.timelineManager;
+            
+            if (this.history.size() > 0) {
+                const lastBoardState = this.history.boardStates[this.history.size() - 1];
+                timelineManager.splitTimeline(lastBoardState);
+            } else {
+                timelineManager.splitTimeline();
+            }
+
+            const timeMove = new TimeTravelMove(
+                fromRow, fromCol, toRow, toCol, piece, BoardTime.PAST
+            );
+
+            const success = timelineManager.presentBoard.makeTimeTravelMove(timeMove, false);
             
             if (success) {
-                this.board = this.timelineManager.getPresentBoard();
+                this.board = timelineManager.getPresentBoard();
+                
+                const spectatorPiece = timelineManager.getPastBoard().getPiece(toRow, toCol);
+                const historyMove = new Move(fromRow, fromCol, toRow, toCol, piece, null);
+                historyMove.moveType = MoveType.TIME_TRAVEL;
+                this.history.addMove(historyMove, timelineManager.getPresentBoard());
+                
+                this.setupTurnOrder(Color.WHITE);
+                
                 console.log('时间旅行成功！时间线已分裂。');
+                console.log('往昔棋盘基于上一回合状态创建。');
+                console.log('回合顺序：AI往昔 -> AI现在 -> 玩家往昔 -> 玩家现在');
             }
 
             return success;
+        }
+
+        savePreTimelineState() {
+            this.preTimelineState = {
+                board: this.timelineManager.getPresentBoard().clone(),
+                historyMoves: [...this.history.moves],
+                historyBoards: [...this.history.boardStates],
+                capturedPieces: {
+                    player: [...this.capturedPieces.player],
+                    opponent: [...this.capturedPieces.opponent]
+                },
+                currentTurn: this.currentTurn
+            };
+        }
+
+        setupTurnOrder(lastActor) {
+            const nextActor = lastActor === Color.WHITE ? Color.BLACK : Color.WHITE;
+            
+            this.turnOrder = [
+                { color: nextActor, boardTime: BoardTime.PAST },
+                { color: nextActor, boardTime: BoardTime.PRESENT },
+                { color: lastActor, boardTime: BoardTime.PAST },
+                { color: lastActor, boardTime: BoardTime.PRESENT }
+            ];
+            
+            this.currentTurnIndex = 0;
+            
+            const currentStep = this.turnOrder[this.currentTurnIndex];
+            this.currentTurn = currentStep.color;
+            this.timelineManager.setActiveBoard(currentStep.boardTime);
+            
+            this.updateTimelineDisplay();
+        }
+
+        advanceTurn() {
+            if (!this.timelineManager.isSplit()) {
+                return;
+            }
+            
+            this.currentTurnIndex = (this.currentTurnIndex + 1) % this.turnOrder.length;
+            
+            const currentStep = this.turnOrder[this.currentTurnIndex];
+            this.currentTurn = currentStep.color;
+            this.timelineManager.setActiveBoard(currentStep.boardTime);
+            
+            console.log(`回合切换: ${this.currentTurn === Color.WHITE ? '玩家' : 'AI'} - ${currentStep.boardTime === BoardTime.PAST ? '往昔' : '现在'}`);
+            
+            this.updateTimelineDisplay();
         }
 
         makeMove(move, boardTime = BoardTime.PRESENT) {
@@ -113,32 +216,21 @@
             this.checkGameState();
 
             if (!this.gameOver) {
-                this.switchTurn();
-                
                 if (timelineManager.isSplit()) {
-                    this.handleSplitTurn();
-                } else if (this.currentTurn === Color.BLACK) {
-                    setTimeout(() => this.makeAIMove(), 500);
+                    this.advanceTurn();
+                    
+                    if (this.currentTurn === Color.BLACK) {
+                        setTimeout(() => this.makeAIMove(), 500);
+                    }
+                } else {
+                    this.switchTurn();
+                    if (this.currentTurn === Color.BLACK) {
+                        setTimeout(() => this.makeAIMove(), 500);
+                    }
                 }
             }
 
             return true;
-        }
-
-        handleSplitTurn() {
-            const timelineManager = this.timelineManager;
-            const pastBoard = timelineManager.getPastBoard();
-            const presentBoard = timelineManager.getPresentBoard();
-
-            if (timelineManager.getActiveBoard().isPastBoard()) {
-                if (this.currentTurn === Color.BLACK) {
-                    setTimeout(() => this.makeAIMoveForBoard(pastBoard, BoardTime.PAST), 500);
-                }
-            } else {
-                if (this.currentTurn === Color.BLACK) {
-                    setTimeout(() => this.makeAIMoveForBoard(presentBoard, BoardTime.PRESENT), 500);
-                }
-            }
         }
 
         makeAIMove() {
@@ -153,6 +245,15 @@
                 targetBoard = timelineManager.getPresentBoard();
             }
 
+            if (this.isBoardGameOver(targetBoard)) {
+                console.log('当前棋盘已结束，跳过AI移动');
+                this.advanceTurn();
+                if (this.currentTurn === Color.BLACK) {
+                    setTimeout(() => this.makeAIMove(), 500);
+                }
+                return;
+            }
+
             const aiMove = this.ai.selectBestMove(targetBoard, Color.BLACK);
             
             if (aiMove) {
@@ -162,32 +263,8 @@
             }
         }
 
-        makeAIMoveForBoard(board, boardTime) {
-            if (this.gameOver) return;
-
-            const aiMove = this.ai.selectBestMove(board, Color.BLACK);
-            
-            if (aiMove) {
-                this.ui.lastMove = { ...aiMove, boardTime };
-                this.makeMove(aiMove, boardTime);
-                this.ui.renderAllBoards();
-            }
-        }
-
         switchTurn() {
             this.currentTurn = this.currentTurn === Color.WHITE ? Color.BLACK : Color.WHITE;
-
-            const timelineManager = this.timelineManager;
-            if (timelineManager.isSplit() && this.currentTurn === Color.WHITE) {
-                if (timelineManager.getActiveBoard().isPastBoard()) {
-                    const pastBoard = timelineManager.getPastBoard();
-                    if (!this.isBoardGameOver(pastBoard)) {
-                        return;
-                    }
-                    timelineManager.setActiveBoard(BoardTime.PRESENT);
-                    console.log('往昔棋盘游戏结束，切换到现在棋盘。');
-                }
-            }
         }
 
         isBoardGameOver(board) {
@@ -198,6 +275,7 @@
             this.ui.updateStatusLights();
             this.ui.updateScores();
             this.ui.updateBanishedPieces();
+            this.ui.updateCheckIndicator();
 
             const timelineManager = this.timelineManager;
             
@@ -229,6 +307,11 @@
             }
         }
 
+        updateTimelineDisplay() {
+            this.ui.updateTimelineDisplay();
+            this.ui.updateTurnIndicators();
+        }
+
         undoMove() {
             const historySize = this.history.size();
             if (historySize === 0) {
@@ -242,9 +325,13 @@
             }
 
             if (this.timelineManager.isSplit()) {
-                console.log('时间线已分裂，无法悔棋');
-                alert('时间线已分裂，无法悔棋！');
-                return false;
+                if (!this.preTimelineState) {
+                    console.log('无法找到时间旅行前的状态');
+                    alert('无法悔棋到时间旅行之前！');
+                    return false;
+                }
+
+                return this.undoTimeTravel();
             }
 
             let undoCount = 0;
@@ -298,11 +385,56 @@
 
             this.ui.updateCapturedPieces();
             this.ui.updateStatusLights();
+            this.ui.updateCheckIndicator();
             this.ui.selectedSquare = null;
             this.ui.validMoves = [];
             this.ui.renderAllBoards();
 
             console.log('悔棋成功');
+            return true;
+        }
+
+        undoTimeTravel() {
+            if (!this.preTimelineState) {
+                return false;
+            }
+
+            const state = this.preTimelineState;
+
+            this.timelineManager.reset();
+            this.timelineManager.presentBoard = state.board.clone();
+            this.board = this.timelineManager.presentBoard;
+
+            this.history.moves = [...state.historyMoves];
+            this.history.boardStates = [...state.historyBoards];
+
+            this.capturedPieces = {
+                player: [...state.capturedPieces.player],
+                opponent: [...state.capturedPieces.opponent]
+            };
+
+            this.currentTurn = state.currentTurn;
+            this.gameOver = false;
+
+            this.preTimelineState = null;
+            this.turnOrder = [];
+            this.currentTurnIndex = 0;
+
+            if (this.history.size() > 0) {
+                const moves = this.history.moves;
+                this.ui.lastMove = moves[moves.length - 1];
+            } else {
+                this.ui.lastMove = null;
+            }
+
+            this.ui.updateCapturedPieces();
+            this.ui.updateStatusLights();
+            this.ui.updateCheckIndicator();
+            this.ui.selectedSquare = null;
+            this.ui.validMoves = [];
+            this.ui.renderAllBoards();
+
+            console.log('悔棋成功：已撤销时间旅行');
             return true;
         }
 
@@ -327,7 +459,9 @@
                     isEnPassant: m.isEnPassant,
                     moveType: m.moveType
                 })),
-                timelineIsSplit: this.timelineManager.isSplit()
+                timelineIsSplit: this.timelineManager.isSplit(),
+                turnOrder: this.turnOrder,
+                currentTurnIndex: this.currentTurnIndex
             };
 
             const saveName = `save_${new Date().toISOString().replace(/[:.]/g, '-')}`;
@@ -520,6 +654,14 @@
                     }
                     
                     this.history = tempHistory;
+                }
+
+                if (saveData.turnOrder) {
+                    this.turnOrder = saveData.turnOrder;
+                    this.currentTurnIndex = saveData.currentTurnIndex || 0;
+                } else {
+                    this.turnOrder = [];
+                    this.currentTurnIndex = 0;
                 }
 
                 this.ui.showScreen('gameScreen');

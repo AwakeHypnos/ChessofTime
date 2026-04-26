@@ -82,6 +82,11 @@
                             <span id="ai-score" class="score-value">0</span>
                         </div>
                     </div>
+                    <!-- 将军提示 -->
+                    <div id="check-indicator" class="check-indicator hidden">
+                        <span class="check-icon">⚡</span>
+                        <span id="check-message" class="check-message">将军!</span>
+                    </div>
                 </div>
 
                 <!-- 窗口大小警告 -->
@@ -197,7 +202,7 @@
                     </div>
                 </div>
 
-                <!-- 玩家控制区域 -->
+                <!-- 玩家控制区域 - 新布局 -->
                 <div class="player-controls-area">
                     <div class="player-info-full">
                         <div class="player-avatar player-avatar">
@@ -206,28 +211,29 @@
                         <div class="player-details-full">
                             <div class="player-name">玩家</div>
                             <div class="player-controls-main">
-                                <button id="player-reverse" class="control-btn reverse-btn">悔棋</button>
                                 <button id="player-save" class="control-btn save-btn">存档</button>
                                 <button id="player-load" class="control-btn load-btn">读档</button>
                                 <button id="player-pause" class="control-btn pause-btn">暂停</button>
+                                <button id="player-reverse" class="control-btn reverse-btn">悔棋</button>
+                                <!-- 玩家吃子区放在暂停按钮右侧 -->
+                                <div id="player-captured" class="captured-pieces-main captured-inline">
+                                    <!-- 玩家吃掉的棋子 -->
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div id="player-captured" class="captured-pieces-main">
-                        <!-- 玩家吃掉的棋子 -->
-                    </div>
                 </div>
 
-                <!-- 对手信息区域 -->
+                <!-- 对手信息区域 - 新布局 -->
                 <div class="opponent-info-area">
-                    <div id="opponent-captured" class="captured-pieces-main">
-                        <!-- 对手吃掉的棋子 -->
-                    </div>
                     <div class="player-info-full">
                         <div class="player-details-full">
                             <div class="player-name">AI 对手</div>
                             <div class="player-controls-main">
-                                <button id="opponent-reverse" class="control-btn reverse-btn disabled" disabled>悔棋</button>
+                                <!-- AI吃子区放在原来的悔棋按钮处 -->
+                                <div id="opponent-captured" class="captured-pieces-main captured-inline">
+                                    <!-- 对手吃掉的棋子 -->
+                                </div>
                                 <div class="status-lights">
                                     <div id="player-checkmate" class="status-light checkmate-light">
                                         <span class="light-label">Checkmate</span>

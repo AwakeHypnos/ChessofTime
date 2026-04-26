@@ -47,10 +47,10 @@
                 backFromDifficulty: document.getElementById('back-from-difficulty'),
                 backFromCredits: document.getElementById('back-from-credits'),
                 backFromLoad: document.getElementById('back-from-load'),
-                playerReverse: document.getElementById('player-reverse'),
                 playerSave: document.getElementById('player-save'),
                 playerLoad: document.getElementById('player-load'),
                 playerPause: document.getElementById('player-pause'),
+                playerReverse: document.getElementById('player-reverse'),
                 restartGame: document.getElementById('restart-game'),
                 backToMenu: document.getElementById('back-to-menu'),
                 closeSaveModal: document.getElementById('close-save-modal'),
@@ -123,6 +123,9 @@
             this.banishedArea = document.getElementById('banished-area');
             this.banishedPieces = document.getElementById('banished-pieces');
             this.timeTravelHint = document.getElementById('time-travel-hint');
+
+            this.checkIndicator = document.getElementById('check-indicator');
+            this.checkMessage = document.getElementById('check-message');
         }
 
         initEventListeners() {
@@ -143,10 +146,10 @@
                 });
             });
 
-            this.buttons.playerReverse.addEventListener('click', () => this.game.undoMove());
             this.buttons.playerSave.addEventListener('click', () => this.game.saveGame());
             this.buttons.playerLoad.addEventListener('click', () => this.showLoadModal());
             this.buttons.playerPause.addEventListener('click', () => this.showModal('pause'));
+            this.buttons.playerReverse.addEventListener('click', () => this.game.undoMove());
 
             this.buttons.timeTravelMode.addEventListener('click', () => this.toggleTimeTravelMode());
 
@@ -251,12 +254,23 @@
             
             if (timelineManager.isSplit()) {
                 const activeBoard = timelineManager.getActiveBoard();
+                const currentTurn = this.game.currentTurn;
+                
+                this.timelineElements.pastTurnIndicator.classList.remove('hidden');
+                this.timelineElements.presentTurnIndicator.classList.remove('hidden');
+                
                 if (activeBoard.isPastBoard()) {
-                    this.timelineElements.pastTurnIndicator.classList.remove('hidden');
-                    this.timelineElements.presentTurnIndicator.classList.add('hidden');
+                    this.timelineElements.pastTurnIndicator.textContent = 
+                        (currentTurn === Color.WHITE ? '玩家' : 'AI') + ' 行动中';
+                    this.timelineElements.pastTurnIndicator.classList.add('active-turn');
+                    this.timelineElements.presentTurnIndicator.textContent = '等待中';
+                    this.timelineElements.presentTurnIndicator.classList.remove('active-turn');
                 } else {
-                    this.timelineElements.pastTurnIndicator.classList.add('hidden');
-                    this.timelineElements.presentTurnIndicator.classList.remove('hidden');
+                    this.timelineElements.presentTurnIndicator.textContent = 
+                        (currentTurn === Color.WHITE ? '玩家' : 'AI') + ' 行动中';
+                    this.timelineElements.presentTurnIndicator.classList.add('active-turn');
+                    this.timelineElements.pastTurnIndicator.textContent = '等待中';
+                    this.timelineElements.pastTurnIndicator.classList.remove('active-turn');
                 }
             } else {
                 this.timelineElements.pastTurnIndicator.classList.add('hidden');
@@ -283,6 +297,47 @@
             });
         }
 
+        updateCheckIndicator() {
+            const timelineManager = this.game.timelineManager;
+            let isPlayerInCheck = false;
+            let isAIInCheck = false;
+            let checkBoard = null;
+
+            if (timelineManager.isSplit()) {
+                const pastBoard = timelineManager.getPastBoard();
+                const presentBoard = timelineManager.getPresentBoard();
+                
+                if (pastBoard.isInCheck(Color.WHITE) || presentBoard.isInCheck(Color.WHITE)) {
+                    isPlayerInCheck = true;
+                    checkBoard = pastBoard.isInCheck(Color.WHITE) ? pastBoard : presentBoard;
+                }
+                if (pastBoard.isInCheck(Color.BLACK) || presentBoard.isInCheck(Color.BLACK)) {
+                    isAIInCheck = true;
+                }
+            } else {
+                const presentBoard = timelineManager.getPresentBoard();
+                isPlayerInCheck = presentBoard.isInCheck(Color.WHITE);
+                isAIInCheck = presentBoard.isInCheck(Color.BLACK);
+                if (isPlayerInCheck) {
+                    checkBoard = presentBoard;
+                }
+            }
+
+            if (isPlayerInCheck && this.game.currentTurn === Color.WHITE) {
+                this.checkIndicator.classList.remove('hidden');
+                this.checkIndicator.classList.add('player-check');
+                this.checkMessage.textContent = '将军!';
+            } else if (isAIInCheck && this.game.currentTurn === Color.BLACK) {
+                this.checkIndicator.classList.remove('hidden');
+                this.checkIndicator.classList.remove('player-check');
+                this.checkIndicator.classList.add('ai-check');
+                this.checkMessage.textContent = 'AI被将军!';
+            } else {
+                this.checkIndicator.classList.add('hidden');
+                this.checkIndicator.classList.remove('player-check', 'ai-check');
+            }
+        }
+
         renderAllBoards() {
             const timelineManager = this.game.timelineManager;
             
@@ -300,6 +355,9 @@
             if (!boardElement) return;
             
             boardElement.innerHTML = '';
+            
+            const kingPos = board.findKing(this.game.currentTurn);
+            const isInCheck = board.isInCheck(this.game.currentTurn);
             
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
@@ -319,6 +377,10 @@
                         pieceElement.className = pieceClass;
                         pieceElement.textContent = piece.getSymbol();
                         square.appendChild(pieceElement);
+                    }
+
+                    if (isInCheck && kingPos && kingPos.row === row && kingPos.col === col) {
+                        square.classList.add('check-square');
                     }
 
                     if (this.selectedSquare && 
@@ -510,22 +572,25 @@
         }
 
         updateCapturedPieces() {
-            this.capturedPieces.player.innerHTML = '';
-            this.capturedPieces.opponent.innerHTML = '';
+            if (this.capturedPieces.player) {
+                this.capturedPieces.player.innerHTML = '';
+                this.game.capturedPieces.player.forEach(piece => {
+                    const pieceElement = document.createElement('span');
+                    pieceElement.className = 'captured-piece';
+                    pieceElement.textContent = PieceSymbols[piece.color][piece.type];
+                    this.capturedPieces.player.appendChild(pieceElement);
+                });
+            }
 
-            this.game.capturedPieces.player.forEach(piece => {
-                const pieceElement = document.createElement('span');
-                pieceElement.className = 'captured-piece';
-                pieceElement.textContent = PieceSymbols[piece.color][piece.type];
-                this.capturedPieces.player.appendChild(pieceElement);
-            });
-
-            this.game.capturedPieces.opponent.forEach(piece => {
-                const pieceElement = document.createElement('span');
-                pieceElement.className = 'captured-piece';
-                pieceElement.textContent = PieceSymbols[piece.color][piece.type];
-                this.capturedPieces.opponent.appendChild(pieceElement);
-            });
+            if (this.capturedPieces.opponent) {
+                this.capturedPieces.opponent.innerHTML = '';
+                this.game.capturedPieces.opponent.forEach(piece => {
+                    const pieceElement = document.createElement('span');
+                    pieceElement.className = 'captured-piece';
+                    pieceElement.textContent = PieceSymbols[piece.color][piece.type];
+                    this.capturedPieces.opponent.appendChild(pieceElement);
+                });
+            }
         }
 
         showGameOver(winner, scores = null) {
@@ -629,6 +694,7 @@
             this.updateStatusLights();
             this.updateCapturedPieces();
             this.updateBanishedPieces();
+            this.updateCheckIndicator();
             this.renderAllBoards();
             this.checkWindowSize();
         }

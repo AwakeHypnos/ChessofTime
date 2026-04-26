@@ -819,12 +819,16 @@ class TimelineManager {
         return this.timelineType === TimelineType.SPLIT;
     }
 
-    splitTimeline() {
+    splitTimeline(pastBoardState) {
         if (this.isSplit()) {
             return false;
         }
 
-        this.pastBoard = this.presentBoard.clone();
+        if (pastBoardState) {
+            this.pastBoard = pastBoardState.clone();
+        } else {
+            this.pastBoard = this.presentBoard.clone();
+        }
         this.pastBoard.setBoardTime(BoardTime.PAST);
         
         this.presentBoard.setLinkedBoard(this.pastBoard);

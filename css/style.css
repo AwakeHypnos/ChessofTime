@@ -1324,6 +1324,109 @@ body::after {
     max-width: 350px;
 }
 
+.captured-inline {
+    margin-left: auto;
+}
+
+.square.check-square {
+    box-shadow: inset 0 0 30px var(--cyber-glow-red), 0 0 15px var(--cyber-glow-red);
+    background: linear-gradient(135deg, rgba(255, 0, 84, 0.3), rgba(255, 0, 84, 0.2)) !important;
+    border: 2px solid var(--cyber-red);
+    animation: checkSquarePulse 0.8s ease-in-out infinite;
+}
+
+@keyframes checkSquarePulse {
+    0%, 100% { 
+        box-shadow: inset 0 0 30px var(--cyber-glow-red), 0 0 15px var(--cyber-glow-red);
+    }
+    50% { 
+        box-shadow: inset 0 0 40px var(--cyber-glow-red), 0 0 25px var(--cyber-glow-red);
+    }
+}
+
+.check-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 25px;
+    background: linear-gradient(135deg, rgba(255, 0, 84, 0.9), rgba(247, 37, 133, 0.9));
+    border: 2px solid var(--cyber-red);
+    border-radius: 10px;
+    box-shadow: 
+        0 0 30px var(--cyber-glow-red),
+        0 0 60px var(--cyber-glow-pink),
+        inset 0 0 20px rgba(255, 0, 84, 0.3);
+    animation: checkIndicatorPulse 0.5s ease-in-out infinite;
+    z-index: 100;
+}
+
+.check-indicator.hidden {
+    display: none;
+}
+
+.check-indicator.player-check {
+    background: linear-gradient(135deg, rgba(255, 0, 84, 0.9), rgba(247, 37, 133, 0.9));
+    border-color: var(--cyber-red);
+}
+
+.check-indicator.ai-check {
+    background: linear-gradient(135deg, rgba(6, 255, 165, 0.9), rgba(76, 201, 240, 0.9));
+    border-color: var(--cyber-green);
+    box-shadow: 
+        0 0 30px var(--cyber-glow-green),
+        0 0 60px var(--cyber-glow-cyan),
+        inset 0 0 20px rgba(6, 255, 165, 0.3);
+}
+
+.check-icon {
+    font-size: 2rem;
+    animation: checkIconShake 0.1s ease-in-out infinite alternate;
+}
+
+.check-message {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--cyber-white);
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes checkIndicatorPulse {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+}
+
+@keyframes checkIconShake {
+    0% { transform: translateX(-2px) rotate(-5deg); }
+    100% { transform: translateX(2px) rotate(5deg); }
+}
+
+.timeline-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, 
+        rgba(67, 97, 238, 0.2), 
+        rgba(247, 37, 133, 0.2),
+        rgba(255, 149, 0, 0.2));
+    border: 2px solid transparent;
+    border-image: linear-gradient(90deg, 
+        var(--cyber-blue), 
+        var(--cyber-pink), 
+        var(--cyber-orange)) 1;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
 /* 响应式棋盘布局 */
 .game-container.adapted-layout {
     padding-top: 50px;
