@@ -29,8 +29,8 @@
                 <div class="difficulty-buttons">
                     <button class="difficulty-btn" data-difficulty="easy">简单</button>
                     <button class="difficulty-btn" data-difficulty="medium">中等</button>
-                    <button class="difficulty-btn" data-difficulty="hard">困难</button>
-                    <button class="difficulty-btn" data-difficulty="master">大师</button>
+                    <button class="difficulty-btn disabled" data-difficulty="hard" disabled>困难 (性能优化中)</button>
+                    <button class="difficulty-btn disabled" data-difficulty="master" disabled>大师 (性能优化中)</button>
                 </div>
                 <button id="back-from-difficulty" class="menu-btn back-btn">返回</button>
             </div>
@@ -66,29 +66,21 @@
         <!-- 游戏界面 -->
         <div id="game-screen" class="screen">
             <div class="game-container">
-                <!-- 对手区域 -->
-                <div class="opponent-area">
-                    <div class="player-info">
-                        <div class="player-avatar opponent-avatar">
-                            <div class="avatar-icon">🤖</div>
-                        </div>
-                        <div class="player-details">
-                            <div class="player-name">AI 对手</div>
-                            <div class="player-controls">
-                                <button id="opponent-reverse" class="control-btn reverse-btn disabled" disabled>悔棋</button>
-                                <div class="status-lights">
-                                    <div id="opponent-checkmate" class="status-light checkmate-light">
-                                        <span class="light-label">Checkmate</span>
-                                    </div>
-                                    <div id="opponent-stalemate" class="status-light stalemate-light">
-                                        <span class="light-label">Stalemate</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- 时间线状态条 -->
+                <div id="timeline-status" class="timeline-status">
+                    <div class="timeline-info">
+                        <span class="timeline-label">时间线状态:</span>
+                        <span id="timeline-mode" class="timeline-mode">单一时间线</span>
                     </div>
-                    <div id="opponent-captured" class="captured-pieces">
-                        <!-- 对手吃掉的棋子 -->
+                    <div class="score-display">
+                        <div class="score-item">
+                            <span class="score-label">玩家积分:</span>
+                            <span id="player-score" class="score-value">0</span>
+                        </div>
+                        <div class="score-item">
+                            <span class="score-label">AI积分:</span>
+                            <span id="ai-score" class="score-value">0</span>
+                        </div>
                     </div>
                 </div>
 
@@ -100,26 +92,142 @@
                     </div>
                 </div>
 
-                <!-- 棋盘区域 -->
-                <div class="board-area">
-                    <div id="chess-board" class="chess-board">
-                        <!-- 棋盘格子将通过JS生成 -->
+                <!-- 双棋盘区域 -->
+                <div class="dual-board-area">
+                    <!-- 往昔棋盘区域 -->
+                    <div id="past-board-container" class="board-container past-container hidden">
+                        <div class="board-header past-header">
+                            <span class="board-title">⏳ 往昔</span>
+                            <span id="past-turn-indicator" class="turn-indicator">行动中</span>
+                        </div>
+                        <div class="opponent-area-mini">
+                            <div class="player-info-mini">
+                                <span class="mini-avatar">🤖</span>
+                                <span class="mini-name">AI (往昔)</span>
+                            </div>
+                            <div id="past-opponent-captured" class="captured-pieces-mini">
+                                <!-- 往昔对手吃掉的棋子 -->
+                            </div>
+                        </div>
+                        <div id="past-chess-board" class="chess-board past-board">
+                            <!-- 往昔棋盘格子 -->
+                        </div>
+                        <div class="player-area-mini">
+                            <div id="past-player-captured" class="captured-pieces-mini">
+                                <!-- 往昔玩家吃掉的棋子 -->
+                            </div>
+                            <div class="player-info-mini">
+                                <span class="mini-name">玩家 (往昔)</span>
+                                <span class="mini-avatar">👤</span>
+                            </div>
+                        </div>
+                        <div class="status-lights-mini">
+                            <div id="past-player-checkmate" class="status-light-mini checkmate-light">
+                                <span class="light-label-mini">CM</span>
+                            </div>
+                            <div id="past-player-stalemate" class="status-light-mini stalemate-light">
+                                <span class="light-label-mini">SM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 时间线分隔线 -->
+                    <div id="timeline-divider" class="timeline-divider hidden">
+                        <div class="divider-line"></div>
+                        <div class="divider-label">时间分裂</div>
+                        <div class="divider-line"></div>
+                    </div>
+
+                    <!-- 现在棋盘区域 -->
+                    <div id="present-board-container" class="board-container present-container">
+                        <div class="board-header present-header">
+                            <span class="board-title">🎯 现在</span>
+                            <span id="present-turn-indicator" class="turn-indicator hidden">等待中</span>
+                        </div>
+                        <div class="opponent-area-mini">
+                            <div class="player-info-mini">
+                                <span class="mini-avatar">🤖</span>
+                                <span class="mini-name">AI (现在)</span>
+                            </div>
+                            <div id="present-opponent-captured" class="captured-pieces-mini">
+                                <!-- 现在对手吃掉的棋子 -->
+                            </div>
+                        </div>
+                        <div id="present-chess-board" class="chess-board present-board">
+                            <!-- 现在棋盘格子 -->
+                        </div>
+                        <div class="player-area-mini">
+                            <div id="present-player-captured" class="captured-pieces-mini">
+                                <!-- 现在玩家吃掉的棋子 -->
+                            </div>
+                            <div class="player-info-mini">
+                                <span class="mini-name">玩家 (现在)</span>
+                                <span class="mini-avatar">👤</span>
+                            </div>
+                        </div>
+                        <div class="status-lights-mini">
+                            <div id="present-player-checkmate" class="status-light-mini checkmate-light">
+                                <span class="light-label-mini">CM</span>
+                            </div>
+                            <div id="present-player-stalemate" class="status-light-mini stalemate-light">
+                                <span class="light-label-mini">SM</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 玩家区域 -->
-                <div class="player-area">
-                    <div id="player-captured" class="captured-pieces">
-                        <!-- 玩家吃掉的棋子 -->
+                <!-- 时间旅行控制区 -->
+                <div id="time-travel-controls" class="time-travel-controls">
+                    <button id="time-travel-mode" class="control-btn time-btn">
+                        <span class="btn-icon">⏰</span>
+                        <span class="btn-text">时间旅行模式</span>
+                    </button>
+                    <div id="time-travel-hint" class="time-hint hidden">
+                        选择棋子后，点击"穿越到往昔"按钮进行时间移动
                     </div>
-                    <div class="player-info">
-                        <div class="player-details">
+                </div>
+
+                <!-- 放逐棋子显示区 -->
+                <div id="banished-area" class="banished-area hidden">
+                    <div class="banished-header">
+                        <span class="banished-title">⚡ 被放逐的棋子</span>
+                    </div>
+                    <div id="banished-pieces" class="banished-pieces">
+                        <!-- 被放逐的棋子 -->
+                    </div>
+                </div>
+
+                <!-- 玩家控制区域 -->
+                <div class="player-controls-area">
+                    <div class="player-info-full">
+                        <div class="player-avatar player-avatar">
+                            <div class="avatar-icon">👤</div>
+                        </div>
+                        <div class="player-details-full">
                             <div class="player-name">玩家</div>
-                            <div class="player-controls">
+                            <div class="player-controls-main">
                                 <button id="player-reverse" class="control-btn reverse-btn">悔棋</button>
                                 <button id="player-save" class="control-btn save-btn">存档</button>
                                 <button id="player-load" class="control-btn load-btn">读档</button>
                                 <button id="player-pause" class="control-btn pause-btn">暂停</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="player-captured" class="captured-pieces-main">
+                        <!-- 玩家吃掉的棋子 -->
+                    </div>
+                </div>
+
+                <!-- 对手信息区域 -->
+                <div class="opponent-info-area">
+                    <div id="opponent-captured" class="captured-pieces-main">
+                        <!-- 对手吃掉的棋子 -->
+                    </div>
+                    <div class="player-info-full">
+                        <div class="player-details-full">
+                            <div class="player-name">AI 对手</div>
+                            <div class="player-controls-main">
+                                <button id="opponent-reverse" class="control-btn reverse-btn disabled" disabled>悔棋</button>
                                 <div class="status-lights">
                                     <div id="player-checkmate" class="status-light checkmate-light">
                                         <span class="light-label">Checkmate</span>
@@ -130,8 +238,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="player-avatar player-avatar">
-                            <div class="avatar-icon">👤</div>
+                        <div class="player-avatar opponent-avatar">
+                            <div class="avatar-icon">🤖</div>
                         </div>
                     </div>
                 </div>

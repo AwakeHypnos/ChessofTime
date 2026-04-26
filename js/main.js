@@ -1,16 +1,30 @@
 (function() {
     /**
      * ChessTime - 主程序入口
-     * 整合所有模块，管理游戏状态
+     * 整合所有模块，管理游戏状态 - 支持时间旅行规则
      */
 
-    const { PieceType, Color, Board, Move, GameHistory, Piece } = window.ChessTime;
+    const { 
+        PieceType, 
+        Color, 
+        Board, 
+        Move, 
+        GameHistory, 
+        Piece,
+        PieceStatus,
+        TimelineType,
+        BoardTime,
+        MoveType,
+        ScoreConfig,
+        TimelineManager
+    } = window.ChessTime;
     const ChessAI = window.ChessAI;
     const GameUI = window.GameUI;
 
     class ChessTimeGame {
         constructor() {
-            this.board = new Board();
+            this.timelineManager = new TimelineManager();
+            this.board = this.timelineManager.getPresentBoard();
             this.ai = new ChessAI('medium');
             this.history = new GameHistory();
             this.currentTurn = Color.WHITE;
@@ -27,6 +41,7 @@
         init() {
             console.log('ChessTime - 穿越时间的象棋');
             console.log('赛博朋克风格国际象棋游戏');
+            console.log('支持时间旅行规则');
         }
 
         setDifficulty(difficulty) {
@@ -35,7 +50,8 @@
         }
 
         startGame() {
-            this.board = new Board();
+            this.timelineManager.reset();
+            this.board = this.timelineManager.getPresentBoard();
             this.history = new GameHistory();
             this.currentTurn = Color.WHITE;
             this.gameOver = false;
@@ -48,8 +64,39 @@
             console.log('游戏开始！玩家执白先行。');
         }
 
-        makeMove(move) {
+        canTimeTravel() {
+            return this.timelineManager.canTimeTravel();
+        }
+
+        performTimeTravel(fromRow, fromCol, toRow, toCol) {
+            if (!this.canTimeTravel()) {
+                return false;
+            }
+
+            const success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
+            
+            if (success) {
+                this.board = this.timelineManager.getPresentBoard();
+                console.log('时间旅行成功！时间线已分裂。');
+            }
+
+            return success;
+        }
+
+        makeMove(move, boardTime = BoardTime.PRESENT) {
             if (this.gameOver) return false;
+
+            const timelineManager = this.timelineManager;
+            let targetBoard;
+
+            if (timelineManager.isSplit()) {
+                targetBoard = timelineManager.getActiveBoard();
+                if (targetBoard.getBoardTime() !== boardTime) {
+                    return false;
+                }
+            } else {
+                targetBoard = timelineManager.getPresentBoard();
+            }
 
             if (move.capturedPiece) {
                 if (this.currentTurn === Color.WHITE) {
@@ -59,8 +106,8 @@
                 }
             }
 
-            this.history.addMove(move, this.board);
-            this.board.makeMove(move);
+            this.history.addMove(move, targetBoard);
+            targetBoard.makeMove(move);
 
             this.ui.updateCapturedPieces();
             this.checkGameState();
@@ -68,7 +115,9 @@
             if (!this.gameOver) {
                 this.switchTurn();
                 
-                if (this.currentTurn === Color.BLACK) {
+                if (timelineManager.isSplit()) {
+                    this.handleSplitTurn();
+                } else if (this.currentTurn === Color.BLACK) {
                     setTimeout(() => this.makeAIMove(), 500);
                 }
             }
@@ -76,36 +125,107 @@
             return true;
         }
 
+        handleSplitTurn() {
+            const timelineManager = this.timelineManager;
+            const pastBoard = timelineManager.getPastBoard();
+            const presentBoard = timelineManager.getPresentBoard();
+
+            if (timelineManager.getActiveBoard().isPastBoard()) {
+                if (this.currentTurn === Color.BLACK) {
+                    setTimeout(() => this.makeAIMoveForBoard(pastBoard, BoardTime.PAST), 500);
+                }
+            } else {
+                if (this.currentTurn === Color.BLACK) {
+                    setTimeout(() => this.makeAIMoveForBoard(presentBoard, BoardTime.PRESENT), 500);
+                }
+            }
+        }
+
         makeAIMove() {
             if (this.gameOver || this.currentTurn !== Color.BLACK) return;
 
-            const aiMove = this.ai.selectBestMove(this.board, Color.BLACK);
+            const timelineManager = this.timelineManager;
+            let targetBoard;
+
+            if (timelineManager.isSplit()) {
+                targetBoard = timelineManager.getActiveBoard();
+            } else {
+                targetBoard = timelineManager.getPresentBoard();
+            }
+
+            const aiMove = this.ai.selectBestMove(targetBoard, Color.BLACK);
             
             if (aiMove) {
-                this.ui.lastMove = aiMove;
-                this.makeMove(aiMove);
-                this.ui.renderBoard();
+                this.ui.lastMove = { ...aiMove, boardTime: targetBoard.getBoardTime() };
+                this.makeMove(aiMove, targetBoard.getBoardTime());
+                this.ui.renderAllBoards();
+            }
+        }
+
+        makeAIMoveForBoard(board, boardTime) {
+            if (this.gameOver) return;
+
+            const aiMove = this.ai.selectBestMove(board, Color.BLACK);
+            
+            if (aiMove) {
+                this.ui.lastMove = { ...aiMove, boardTime };
+                this.makeMove(aiMove, boardTime);
+                this.ui.renderAllBoards();
             }
         }
 
         switchTurn() {
             this.currentTurn = this.currentTurn === Color.WHITE ? Color.BLACK : Color.WHITE;
+
+            const timelineManager = this.timelineManager;
+            if (timelineManager.isSplit() && this.currentTurn === Color.WHITE) {
+                if (timelineManager.getActiveBoard().isPastBoard()) {
+                    const pastBoard = timelineManager.getPastBoard();
+                    if (!this.isBoardGameOver(pastBoard)) {
+                        return;
+                    }
+                    timelineManager.setActiveBoard(BoardTime.PRESENT);
+                    console.log('往昔棋盘游戏结束，切换到现在棋盘。');
+                }
+            }
+        }
+
+        isBoardGameOver(board) {
+            return board.isGameOver();
         }
 
         checkGameState() {
             this.ui.updateStatusLights();
+            this.ui.updateScores();
+            this.ui.updateBanishedPieces();
 
-            if (this.board.isGameOver()) {
+            const timelineManager = this.timelineManager;
+            
+            let isGameOver = false;
+            
+            if (timelineManager.isSplit()) {
+                const pastOver = this.isBoardGameOver(timelineManager.getPastBoard());
+                const presentOver = this.isBoardGameOver(timelineManager.getPresentBoard());
+                
+                isGameOver = pastOver && presentOver;
+            } else {
+                isGameOver = this.isBoardGameOver(timelineManager.getPresentBoard());
+            }
+
+            if (isGameOver) {
                 this.gameOver = true;
-                const winner = this.board.getWinner();
+                const scores = timelineManager.calculateEndGameScores();
+                const winner = timelineManager.getWinnerByScore();
                 
                 if (winner) {
                     console.log(`游戏结束！${winner === Color.WHITE ? '玩家' : 'AI'}获胜！`);
+                    console.log(`积分: 玩家 ${scores.player} - AI ${scores.ai}`);
                 } else {
                     console.log('游戏结束！平局！');
+                    console.log(`积分: 玩家 ${scores.player} - AI ${scores.ai}`);
                 }
                 
-                this.ui.showGameOver(winner);
+                this.ui.showGameOver(winner, scores);
             }
         }
 
@@ -118,6 +238,12 @@
 
             if (this.currentTurn === Color.BLACK) {
                 console.log('AI回合不能悔棋');
+                return false;
+            }
+
+            if (this.timelineManager.isSplit()) {
+                console.log('时间线已分裂，无法悔棋');
+                alert('时间线已分裂，无法悔棋！');
                 return false;
             }
 
@@ -153,9 +279,11 @@
             }
 
             if (finalBoard) {
-                this.board = finalBoard.clone();
+                this.timelineManager.presentBoard = finalBoard.clone();
+                this.board = this.timelineManager.presentBoard;
             } else {
-                this.board = new Board();
+                this.timelineManager.reset();
+                this.board = this.timelineManager.getPresentBoard();
             }
 
             this.currentTurn = Color.WHITE;
@@ -172,7 +300,7 @@
             this.ui.updateStatusLights();
             this.ui.selectedSquare = null;
             this.ui.validMoves = [];
-            this.ui.renderBoard();
+            this.ui.renderAllBoards();
 
             console.log('悔棋成功');
             return true;
@@ -180,7 +308,7 @@
 
         async saveGame() {
             const saveData = {
-                version: '1.0.0',
+                version: '2.0.0',
                 date: new Date().toISOString(),
                 difficulty: this.ai.difficulty,
                 currentTurn: this.currentTurn,
@@ -196,8 +324,10 @@
                     toRow: m.toRow,
                     toCol: m.toCol,
                     isCastling: m.isCastling,
-                    isEnPassant: m.isEnPassant
-                }))
+                    isEnPassant: m.isEnPassant,
+                    moveType: m.moveType
+                })),
+                timelineIsSplit: this.timelineManager.isSplit()
             };
 
             const saveName = `save_${new Date().toISOString().replace(/[:.]/g, '-')}`;
@@ -353,7 +483,13 @@
                     opponent: saveData.capturedPieces?.opponent?.map(p => new Piece(p.type, p.color)) || []
                 };
 
+                if (saveData.timelineIsSplit) {
+                    console.warn('加载的存档包含分裂的时间线，当前版本部分支持此功能。');
+                }
+
+                this.timelineManager.reset();
                 this.board = this.deserializeBoard(saveData.boardState);
+                this.timelineManager.presentBoard = this.board;
 
                 this.history = new GameHistory();
                 if (saveData.historyMoves && saveData.historyMoves.length > 0) {
@@ -374,6 +510,9 @@
                                 moveData.isCastling,
                                 moveData.isEnPassant
                             );
+                            if (moveData.moveType) {
+                                move.moveType = moveData.moveType;
+                            }
                             
                             tempHistory.addMove(move, tempBoard);
                             tempBoard.makeMove(move);
@@ -388,7 +527,7 @@
                 
                 if (this.history.moves.length > 0) {
                     this.ui.lastMove = this.history.moves[this.history.moves.length - 1];
-                    this.ui.renderBoard();
+                    this.ui.renderAllBoards();
                 }
 
                 if (this.currentTurn === Color.BLACK && !this.gameOver) {
@@ -401,16 +540,19 @@
         }
 
         serializeBoard() {
+            const board = this.timelineManager.getPresentBoard();
             const grid = [];
             for (let row = 0; row < 8; row++) {
                 const rowData = [];
                 for (let col = 0; col < 8; col++) {
-                    const piece = this.board.getPiece(row, col);
+                    const piece = board.getPiece(row, col);
                     if (piece) {
                         rowData.push({
                             type: piece.type,
                             color: piece.color,
-                            hasMoved: piece.hasMoved
+                            hasMoved: piece.hasMoved,
+                            status: piece.status,
+                            isFromTimeTravel: piece.isFromTimeTravel
                         });
                     } else {
                         rowData.push(null);
@@ -421,10 +563,10 @@
 
             return {
                 grid,
-                enPassantTarget: this.board.enPassantTarget,
-                castlingRights: this.board.castlingRights,
-                halfMoveClock: this.board.halfMoveClock,
-                fullMoveNumber: this.board.fullMoveNumber
+                enPassantTarget: board.enPassantTarget,
+                castlingRights: board.castlingRights,
+                halfMoveClock: board.halfMoveClock,
+                fullMoveNumber: board.fullMoveNumber
             };
         }
 
@@ -438,6 +580,12 @@
                     if (pieceData) {
                         const piece = new Piece(pieceData.type, pieceData.color);
                         piece.hasMoved = pieceData.hasMoved;
+                        if (pieceData.status) {
+                            piece.status = pieceData.status;
+                        }
+                        if (pieceData.isFromTimeTravel) {
+                            piece.isFromTimeTravel = pieceData.isFromTimeTravel;
+                        }
                         board.setPiece(row, col, piece);
                     }
                 }
