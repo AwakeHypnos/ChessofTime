@@ -247,9 +247,14 @@
         }
 
         updateScores() {
-            const scores = this.game.timelineManager.calculateEndGameScores();
-            this.timelineElements.playerScore.textContent = scores.player.toFixed(1);
-            this.timelineElements.aiScore.textContent = scores.ai.toFixed(1);
+            if (this.game.gameOver) {
+                const scores = this.game.timelineManager.calculateEndGameScores();
+                this.timelineElements.playerScore.textContent = scores.player.toFixed(1);
+                this.timelineElements.aiScore.textContent = scores.ai.toFixed(1);
+            } else {
+                this.timelineElements.playerScore.textContent = '-';
+                this.timelineElements.aiScore.textContent = '-';
+            }
         }
 
         updateTurnIndicators() {
