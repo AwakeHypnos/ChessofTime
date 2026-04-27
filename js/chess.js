@@ -483,22 +483,24 @@ class Board {
         if (!attackOnly && !this.isInCheck(color)) {
             const kingRow = color === Color.WHITE ? 7 : 0;
             
-            if (this.castlingRights[color].kingSide) {
-                if (!this.grid[kingRow][5] && !this.grid[kingRow][6]) {
-                    const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
-                    if (!this.isSquareAttacked(kingRow, 5, opponentColor) && 
-                        !this.isSquareAttacked(kingRow, 6, opponentColor)) {
-                        moves.push(new Move(row, col, kingRow, 6, this.grid[row][col], null, true));
+            if (row === kingRow && col === 4 && this.grid[row][col]) {
+                if (this.castlingRights[color].kingSide) {
+                    if (!this.grid[kingRow][5] && !this.grid[kingRow][6]) {
+                        const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
+                        if (!this.isSquareAttacked(kingRow, 5, opponentColor) && 
+                            !this.isSquareAttacked(kingRow, 6, opponentColor)) {
+                            moves.push(new Move(row, col, kingRow, 6, this.grid[row][col], null, true));
+                        }
                     }
                 }
-            }
-            
-            if (this.castlingRights[color].queenSide) {
-                if (!this.grid[kingRow][1] && !this.grid[kingRow][2] && !this.grid[kingRow][3]) {
-                    const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
-                    if (!this.isSquareAttacked(kingRow, 2, opponentColor) && 
-                        !this.isSquareAttacked(kingRow, 3, opponentColor)) {
-                        moves.push(new Move(row, col, kingRow, 2, this.grid[row][col], null, true));
+                
+                if (this.castlingRights[color].queenSide) {
+                    if (!this.grid[kingRow][1] && !this.grid[kingRow][2] && !this.grid[kingRow][3]) {
+                        const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
+                        if (!this.isSquareAttacked(kingRow, 2, opponentColor) && 
+                            !this.isSquareAttacked(kingRow, 3, opponentColor)) {
+                            moves.push(new Move(row, col, kingRow, 2, this.grid[row][col], null, true));
+                        }
                     }
                 }
             }
@@ -546,27 +548,45 @@ class Board {
             const kingRow = fromRow;
             const isKingSide = toCol === 6;
             
-            this.grid[kingRow][toCol] = this.grid[kingRow][4];
+            const king = this.grid[kingRow][4];
+            if (!king) {
+                return;
+            }
+            
+            this.grid[kingRow][toCol] = king;
             this.grid[kingRow][4] = null;
             
             if (isKingSide) {
-                this.grid[kingRow][5] = this.grid[kingRow][7];
-                this.grid[kingRow][7] = null;
+                const rook = this.grid[kingRow][7];
+                if (rook) {
+                    this.grid[kingRow][5] = rook;
+                    this.grid[kingRow][7] = null;
+                    rook.hasMoved = true;
+                }
             } else {
-                this.grid[kingRow][3] = this.grid[kingRow][0];
-                this.grid[kingRow][0] = null;
+                const rook = this.grid[kingRow][0];
+                if (rook) {
+                    this.grid[kingRow][3] = rook;
+                    this.grid[kingRow][0] = null;
+                    rook.hasMoved = true;
+                }
             }
             
-            this.grid[kingRow][toCol].hasMoved = true;
+            king.hasMoved = true;
         } else if (isEnPassant) {
             const capturedPawnRow = piece.color === Color.WHITE ? toRow + 1 : toRow - 1;
             const capturedPawn = this.grid[capturedPawnRow][toCol];
             
-            this.grid[toRow][toCol] = this.grid[fromRow][fromCol];
+            const movingPiece = this.grid[fromRow][fromCol];
+            if (!movingPiece) {
+                return;
+            }
+            
+            this.grid[toRow][toCol] = movingPiece;
             this.grid[fromRow][fromCol] = null;
             this.grid[capturedPawnRow][toCol] = null;
             
-            this.grid[toRow][toCol].hasMoved = true;
+            movingPiece.hasMoved = true;
         } else {
             this.grid[toRow][toCol] = this.grid[fromRow][fromCol];
             this.grid[fromRow][fromCol] = null;
