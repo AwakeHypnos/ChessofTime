@@ -1,9 +1,8 @@
 /**
  * ChessTime - 国际象棋核心逻辑
- * 实现棋盘、棋子、移动规则等核心功能
+ * 实现棋盘、棋子、移动规则等核心功能 - 支持时间旅行规则
  */
 
-// 棋子类型
 const PieceType = {
     KING: 'king',
     QUEEN: 'queen',
@@ -13,13 +12,38 @@ const PieceType = {
     PAWN: 'pawn'
 };
 
-// 颜色
 const Color = {
     WHITE: 'white',
     BLACK: 'black'
 };
 
-// 棋子Unicode字符
+const PieceStatus = {
+    NORMAL: 'normal',
+    SPECTATOR: 'spectator',
+    BANISHED: 'banished'
+};
+
+const TimelineType = {
+    SINGLE: 'single',
+    SPLIT: 'split'
+};
+
+const BoardTime = {
+    PAST: 'past',
+    PRESENT: 'present'
+};
+
+const MoveType = {
+    NORMAL: 'normal',
+    TIME_TRAVEL: 'time_travel'
+};
+
+const ScoreConfig = {
+    PIECE_MULTIPLIER: 1.0,
+    SPECTATOR_PENALTY: 0.5,
+    BANISHED_PENALTY: 0.0
+};
+
 const PieceSymbols = {
     [Color.WHITE]: {
         [PieceType.KING]: '♔',
@@ -39,26 +63,15 @@ const PieceSymbols = {
     }
 };
 
-// 棋子状态枚举
-const PieceStatus = {
-    NORMAL: 'normal',
-    SPECTATOR: 'spectator',
-    BANISHED: 'banished'
+const PieceValue = {
+    [PieceType.KING]: 20000,
+    [PieceType.QUEEN]: 900,
+    [PieceType.ROOK]: 500,
+    [PieceType.BISHOP]: 330,
+    [PieceType.KNIGHT]: 320,
+    [PieceType.PAWN]: 100
 };
 
-// 时间线类型
-const TimelineType = {
-    SINGLE: 'single',
-    SPLIT: 'split'
-};
-
-// 棋盘时间标识
-const BoardTime = {
-    PRESENT: 'present',
-    PAST: 'past'
-};
-
-// 棋子类
 class Piece {
     constructor(type, color) {
         this.type = type;
@@ -80,14 +93,6 @@ class Piece {
         return piece;
     }
 
-    markAsSpectator() {
-        this.status = PieceStatus.SPECTATOR;
-    }
-
-    markAsBanished() {
-        this.status = PieceStatus.BANISHED;
-    }
-
     isSpectator() {
         return this.status === PieceStatus.SPECTATOR;
     }
@@ -95,17 +100,16 @@ class Piece {
     isBanished() {
         return this.status === PieceStatus.BANISHED;
     }
+
+    isNormal() {
+        return this.status === PieceStatus.NORMAL;
+    }
+
+    setStatus(status) {
+        this.status = status;
+    }
 }
 
-// 移动类型枚举
-const MoveType = {
-    NORMAL: 'normal',
-    TIME_TRAVEL: 'time_travel',
-    CAPTURE_IN_PAST: 'capture_in_past',
-    CAPTURE_IN_PRESENT: 'capture_in_present'
-};
-
-// 移动类
 class Move {
     constructor(fromRow, fromCol, toRow, toCol, piece, capturedPiece = null, isCastling = false, isEnPassant = false, promotionType = null) {
         this.fromRow = fromRow;
@@ -121,19 +125,8 @@ class Move {
     }
 }
 
-// 时间移动类
-class TimeTravelMove extends Move {
-    constructor(fromRow, fromCol, toRow, toCol, piece, targetTime) {
-        super(fromRow, fromCol, toRow, toCol, piece, null, false, false, null);
-        this.moveType = MoveType.TIME_TRAVEL;
-        this.targetTime = targetTime;
-        this.isSpectatorMove = true;
-    }
-}
-
-// 棋盘类
 class Board {
-    constructor(boardTime = BoardTime.PRESENT) {
+    constructor() {
         this.grid = this.createEmptyBoard();
         this.setupInitialPosition();
         this.enPassantTarget = null;
@@ -143,68 +136,7 @@ class Board {
         };
         this.halfMoveClock = 0;
         this.fullMoveNumber = 1;
-        this.boardTime = boardTime;
-        this.linkedBoard = null;
-        this.timeTravelMoves = [];
-    }
-
-    setBoardTime(boardTime) {
-        this.boardTime = boardTime;
-    }
-
-    getBoardTime() {
-        return this.boardTime;
-    }
-
-    setLinkedBoard(board) {
-        this.linkedBoard = board;
-    }
-
-    getLinkedBoard() {
-        return this.linkedBoard;
-    }
-
-    isPastBoard() {
-        return this.boardTime === BoardTime.PAST;
-    }
-
-    isPresentBoard() {
-        return this.boardTime === BoardTime.PRESENT;
-    }
-
-    getTimeTravelMoves(row, col) {
-        const piece = this.getPiece(row, col);
-        if (!piece || piece.isSpectator() || piece.isBanished()) {
-            return [];
-        }
-
-        if (this.isPastBoard()) {
-            return [];
-        }
-
-        const moves = [];
-        const allMoves = this.getPieceMoves(row, col);
-        
-        for (const move of allMoves) {
-            const targetPiece = this.getPiece(move.toRow, move.toCol);
-            if (!targetPiece) {
-                const timeMove = new TimeTravelMove(
-                    move.fromRow, 
-                    move.fromCol, 
-                    move.toRow, 
-                    move.toCol, 
-                    piece,
-                    BoardTime.PAST
-                );
-                moves.push(timeMove);
-            }
-        }
-
-        return moves;
-    }
-
-    isTimeTravelMove(move) {
-        return move.moveType === MoveType.TIME_TRAVEL;
+        this.boardTime = BoardTime.PRESENT;
     }
 
     createEmptyBoard() {
@@ -212,7 +144,6 @@ class Board {
     }
 
     setupInitialPosition() {
-        // 黑方
         this.grid[0][0] = new Piece(PieceType.ROOK, Color.BLACK);
         this.grid[0][1] = new Piece(PieceType.KNIGHT, Color.BLACK);
         this.grid[0][2] = new Piece(PieceType.BISHOP, Color.BLACK);
@@ -225,7 +156,6 @@ class Board {
             this.grid[1][col] = new Piece(PieceType.PAWN, Color.BLACK);
         }
 
-        // 白方
         this.grid[7][0] = new Piece(PieceType.ROOK, Color.WHITE);
         this.grid[7][1] = new Piece(PieceType.KNIGHT, Color.WHITE);
         this.grid[7][2] = new Piece(PieceType.BISHOP, Color.WHITE);
@@ -270,14 +200,51 @@ class Board {
         newBoard.castlingRights = JSON.parse(JSON.stringify(this.castlingRights));
         newBoard.halfMoveClock = this.halfMoveClock;
         newBoard.fullMoveNumber = this.fullMoveNumber;
+        newBoard.boardTime = this.boardTime;
         return newBoard;
+    }
+
+    setBoardTime(boardTime) {
+        this.boardTime = boardTime;
+    }
+
+    getBoardTime() {
+        return this.boardTime;
+    }
+
+    isPastBoard() {
+        return this.boardTime === BoardTime.PAST;
+    }
+
+    isPresentBoard() {
+        return this.boardTime === BoardTime.PRESENT;
+    }
+
+    getTimeTravelMoves(row, col) {
+        const piece = this.grid[row][col];
+        if (!piece || piece.isSpectator() || piece.isBanished()) {
+            return [];
+        }
+
+        const moves = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const targetPiece = this.grid[r][c];
+                if (!targetPiece) {
+                    moves.push(new Move(row, col, r, c, piece, null));
+                } else if (targetPiece.color !== piece.color) {
+                    moves.push(new Move(row, col, r, c, piece, targetPiece));
+                }
+            }
+        }
+        return moves;
     }
 
     findKing(color) {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = this.grid[row][col];
-                if (piece && piece.type === PieceType.KING && piece.color === color) {
+                if (piece && piece.type === PieceType.KING && piece.color === color && !piece.isBanished()) {
                     return { row, col };
                 }
             }
@@ -286,12 +253,10 @@ class Board {
     }
 
     isSquareAttacked(row, col, attackingColor) {
-        const opponentColor = attackingColor;
-        
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const piece = this.grid[r][c];
-                if (piece && piece.color === opponentColor) {
+                if (piece && piece.color === attackingColor && piece.isNormal()) {
                     const moves = this.getPieceMoves(r, c, true);
                     for (const move of moves) {
                         if (move.toRow === row && move.toCol === col) {
@@ -518,15 +483,10 @@ class Board {
         if (!attackOnly && !this.isInCheck(color)) {
             const kingRow = color === Color.WHITE ? 7 : 0;
             
-            if (row !== kingRow || col !== 4) {
-                return moves;
-            }
-            
             if (this.castlingRights[color].kingSide) {
                 if (!this.grid[kingRow][5] && !this.grid[kingRow][6]) {
                     const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
-                    if (!this.isSquareAttacked(kingRow, 4, opponentColor) && 
-                        !this.isSquareAttacked(kingRow, 5, opponentColor) && 
+                    if (!this.isSquareAttacked(kingRow, 5, opponentColor) && 
                         !this.isSquareAttacked(kingRow, 6, opponentColor)) {
                         moves.push(new Move(row, col, kingRow, 6, this.grid[row][col], null, true));
                     }
@@ -536,9 +496,8 @@ class Board {
             if (this.castlingRights[color].queenSide) {
                 if (!this.grid[kingRow][1] && !this.grid[kingRow][2] && !this.grid[kingRow][3]) {
                     const opponentColor = color === Color.WHITE ? Color.BLACK : Color.WHITE;
-                    if (!this.isSquareAttacked(kingRow, 4, opponentColor) && 
-                        !this.isSquareAttacked(kingRow, 3, opponentColor) && 
-                        !this.isSquareAttacked(kingRow, 2, opponentColor)) {
+                    if (!this.isSquareAttacked(kingRow, 2, opponentColor) && 
+                        !this.isSquareAttacked(kingRow, 3, opponentColor)) {
                         moves.push(new Move(row, col, kingRow, 2, this.grid[row][col], null, true));
                     }
                 }
@@ -572,7 +531,7 @@ class Board {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = this.grid[row][col];
-                if (piece && piece.color === color) {
+                if (piece && piece.color === color && piece.isNormal()) {
                     moves.push(...this.getLegalMoves(row, col));
                 }
             }
@@ -581,18 +540,8 @@ class Board {
     }
 
     makeMove(move, isSimulation = false) {
-        const { fromRow, fromCol, toRow, toCol, piece, isCastling, isEnPassant, promotionType, moveType } = move;
+        const { fromRow, fromCol, toRow, toCol, piece, isCastling, isEnPassant, promotionType } = move;
         
-        if (moveType === MoveType.TIME_TRAVEL) {
-            return this.makeTimeTravelMove(move, isSimulation);
-        }
-
-        const capturedPiece = move.capturedPiece;
-        
-        if (capturedPiece && this.isPastBoard() && this.linkedBoard) {
-            this.propagateCaptureToPresent(capturedPiece);
-        }
-
         if (isCastling) {
             const kingRow = fromRow;
             const isKingSide = toCol === 6;
@@ -608,16 +557,10 @@ class Board {
                 this.grid[kingRow][0] = null;
             }
             
-            if (this.grid[kingRow][toCol]) {
-                this.grid[kingRow][toCol].hasMoved = true;
-            }
+            this.grid[kingRow][toCol].hasMoved = true;
         } else if (isEnPassant) {
             const capturedPawnRow = piece.color === Color.WHITE ? toRow + 1 : toRow - 1;
             const capturedPawn = this.grid[capturedPawnRow][toCol];
-            
-            if (capturedPawn && this.isPastBoard() && this.linkedBoard) {
-                this.propagateCaptureToPresent(capturedPawn);
-            }
             
             this.grid[toRow][toCol] = this.grid[fromRow][fromCol];
             this.grid[fromRow][fromCol] = null;
@@ -641,19 +584,6 @@ class Board {
             this.grid[toRow][toCol].hasMoved = true;
         }
 
-        if (piece.type === PieceType.KING) {
-            this.castlingRights[piece.color].kingSide = false;
-            this.castlingRights[piece.color].queenSide = false;
-        }
-        if (piece.type === PieceType.ROOK) {
-            if (fromCol === 0) {
-                this.castlingRights[piece.color].queenSide = false;
-            }
-            if (fromCol === 7) {
-                this.castlingRights[piece.color].kingSide = false;
-            }
-        }
-
         if (!isSimulation) {
             if (piece.type === PieceType.PAWN && Math.abs(toRow - fromRow) === 2) {
                 const enPassantRow = piece.color === Color.WHITE ? fromRow - 1 : fromRow + 1;
@@ -662,7 +592,20 @@ class Board {
                 this.enPassantTarget = null;
             }
 
-            if (piece.type === PieceType.PAWN || capturedPiece) {
+            if (piece.type === PieceType.KING) {
+                this.castlingRights[piece.color].kingSide = false;
+                this.castlingRights[piece.color].queenSide = false;
+            }
+            if (piece.type === PieceType.ROOK) {
+                if (fromCol === 0) {
+                    this.castlingRights[piece.color].queenSide = false;
+                }
+                if (fromCol === 7) {
+                    this.castlingRights[piece.color].kingSide = false;
+                }
+            }
+
+            if (piece.type === PieceType.PAWN || move.capturedPiece) {
                 this.halfMoveClock = 0;
             } else {
                 this.halfMoveClock++;
@@ -670,70 +613,6 @@ class Board {
 
             if (piece.color === Color.BLACK) {
                 this.fullMoveNumber++;
-            }
-        }
-    }
-
-    makeTimeTravelMove(move, isSimulation = false) {
-        const { fromRow, fromCol, toRow, toCol, piece, targetTime } = move;
-        
-        if (!this.isPresentBoard() || !this.linkedBoard) {
-            return false;
-        }
-
-        const pastBoard = this.linkedBoard;
-        
-        const movingPiece = this.getPiece(fromRow, fromCol);
-        if (!movingPiece) {
-            return false;
-        }
-
-        const targetInPast = pastBoard.getPiece(toRow, toCol);
-        if (targetInPast) {
-            return false;
-        }
-
-        const spectatorPiece = movingPiece.clone();
-        spectatorPiece.markAsSpectator();
-        spectatorPiece.isFromTimeTravel = true;
-
-        this.setPiece(fromRow, fromCol, null);
-        pastBoard.setPiece(toRow, toCol, spectatorPiece);
-
-        if (!isSimulation) {
-            this.timeTravelMoves.push({
-                move: move,
-                piece: movingPiece,
-                targetPosition: { row: toRow, col: toCol }
-            });
-        }
-
-        return true;
-    }
-
-    propagateCaptureToPresent(capturedPiece) {
-        if (!this.linkedBoard || !this.isPastBoard()) {
-            return;
-        }
-
-        const presentBoard = this.linkedBoard;
-
-        if (capturedPiece.isSpectator()) {
-            capturedPiece.markAsBanished();
-            return;
-        }
-
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                const presentPiece = presentBoard.getPiece(row, col);
-                if (presentPiece && 
-                    presentPiece.type === capturedPiece.type && 
-                    presentPiece.color === capturedPiece.color &&
-                    !presentPiece.isSpectator() &&
-                    !presentPiece.isFromTimeTravel) {
-                    presentBoard.setPiece(row, col, null);
-                    return;
-                }
             }
         }
     }
@@ -762,7 +641,6 @@ class Board {
     }
 }
 
-// 游戏历史记录
 class GameHistory {
     constructor() {
         this.moves = [];
@@ -793,60 +671,26 @@ class GameHistory {
     }
 }
 
-// 积分配置
-const ScoreConfig = {
-    PAST_CHECKMATE: 2.0,
-    PAST_STALEMATE: 1.0,
-    PRESENT_CHECKMATE: 1.5,
-    PRESENT_STALEMATE: 1.0
-};
-
-// 时间线管理器
 class TimelineManager {
     constructor() {
-        this.timelineType = TimelineType.SINGLE;
-        this.presentBoard = new Board(BoardTime.PRESENT);
+        this.reset();
+    }
+
+    reset() {
+        this.presentBoard = new Board();
+        this.presentBoard.setBoardTime(BoardTime.PRESENT);
         this.pastBoard = null;
         this.activeBoard = this.presentBoard;
-        this.scores = {
-            player: 0,
-            ai: 0
-        };
+        this.timelineType = TimelineType.SINGLE;
         this.banishedPieces = [];
     }
 
-    isSplit() {
-        return this.timelineType === TimelineType.SPLIT;
+    getPresentBoard() {
+        return this.presentBoard;
     }
 
-    splitTimeline() {
-        if (this.isSplit()) {
-            return false;
-        }
-
-        this.pastBoard = this.presentBoard.clone();
-        this.pastBoard.setBoardTime(BoardTime.PAST);
-        
-        this.presentBoard.setLinkedBoard(this.pastBoard);
-        this.pastBoard.setLinkedBoard(this.presentBoard);
-
-        this.timelineType = TimelineType.SPLIT;
-        this.activeBoard = this.pastBoard;
-
-        return true;
-    }
-
-    mergeTimeline() {
-        if (!this.isSplit()) {
-            return false;
-        }
-
-        this.presentBoard.setLinkedBoard(null);
-        this.pastBoard = null;
-        this.timelineType = TimelineType.SINGLE;
-        this.activeBoard = this.presentBoard;
-
-        return true;
+    getPastBoard() {
+        return this.pastBoard;
     }
 
     getActiveBoard() {
@@ -856,97 +700,116 @@ class TimelineManager {
     setActiveBoard(boardTime) {
         if (boardTime === BoardTime.PAST && this.pastBoard) {
             this.activeBoard = this.pastBoard;
-            return true;
-        } else if (boardTime === BoardTime.PRESENT) {
+        } else {
             this.activeBoard = this.presentBoard;
-            return true;
         }
-        return false;
     }
 
-    getPastBoard() {
-        return this.pastBoard;
-    }
-
-    getPresentBoard() {
-        return this.presentBoard;
+    isSplit() {
+        return this.timelineType === TimelineType.SPLIT;
     }
 
     canTimeTravel() {
         return !this.isSplit();
     }
 
-    performTimeTravel(fromRow, fromCol, toRow, toCol) {
+    getBanishedPieces() {
+        return this.banishedPieces;
+    }
+
+    splitTimeline(initialPastBoard = null) {
+        if (this.isSplit()) {
+            return false;
+        }
+        
+        if (initialPastBoard) {
+            this.pastBoard = initialPastBoard.clone();
+        } else {
+            this.pastBoard = this.presentBoard.clone();
+        }
+        
+        this.pastBoard.setBoardTime(BoardTime.PAST);
+        this.timelineType = TimelineType.SPLIT;
+        this.activeBoard = this.presentBoard;
+        
+        return true;
+    }
+
+    performTimeTravel(fromRow, fromCol, toRow, toCol, targetBoard = null) {
         if (!this.canTimeTravel()) {
             return false;
         }
 
         const piece = this.presentBoard.getPiece(fromRow, fromCol);
-        if (!piece || piece.isSpectator() || piece.isBanished()) {
+        if (!piece) {
             return false;
         }
 
         const targetPiece = this.presentBoard.getPiece(toRow, toCol);
-        if (targetPiece) {
-            return false;
+
+        if (targetBoard) {
+            this.splitTimeline(targetBoard);
+        } else {
+            this.splitTimeline();
         }
 
-        this.splitTimeline();
+        const timeTravelPiece = new Piece(piece.type, piece.color);
+        timeTravelPiece.hasMoved = true;
+        timeTravelPiece.isFromTimeTravel = true;
+        timeTravelPiece.setStatus(PieceStatus.SPECTATOR);
 
-        const timeMove = new TimeTravelMove(
-            fromRow, fromCol, toRow, toCol, piece, BoardTime.PAST
-        );
+        const existingTarget = this.pastBoard.getPiece(toRow, toCol);
+        if (existingTarget) {
+            this.pastBoard.setPiece(fromRow, fromCol, existingTarget);
+            this.banishedPieces.push(existingTarget);
+        } else {
+            this.presentBoard.setPiece(fromRow, fromCol, null);
+        }
 
-        return this.presentBoard.makeTimeTravelMove(timeMove, false);
+        this.pastBoard.setPiece(toRow, toCol, timeTravelPiece);
+
+        this.activeBoard = this.presentBoard;
+
+        return true;
+    }
+
+    calculateMaterialScore(board, color) {
+        let score = 0;
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board.getPiece(row, col);
+                if (piece && piece.color === color) {
+                    let multiplier = ScoreConfig.PIECE_MULTIPLIER;
+                    if (piece.isSpectator()) {
+                        multiplier = ScoreConfig.SPECTATOR_PENALTY;
+                    } else if (piece.isBanished()) {
+                        multiplier = ScoreConfig.BANISHED_PENALTY;
+                    }
+                    score += PieceValue[piece.type] * multiplier;
+                }
+            }
+        }
+        return score;
     }
 
     calculateEndGameScores() {
-        const scores = { player: 0, ai: 0 };
+        let playerScore = 0;
+        let aiScore = 0;
 
         if (this.isSplit()) {
-            const pastPlayerCM = this.pastBoard.isCheckmate(Color.WHITE);
-            const pastPlayerSM = this.pastBoard.isStalemate(Color.WHITE);
-            const pastAICM = this.pastBoard.isCheckmate(Color.BLACK);
-            const pastAISM = this.pastBoard.isStalemate(Color.BLACK);
-
-            if (pastPlayerCM) {
-                scores.ai += ScoreConfig.PAST_CHECKMATE;
-            }
-            if (pastPlayerSM) {
-                scores.player += ScoreConfig.PAST_STALEMATE * 0.5;
-                scores.ai += ScoreConfig.PAST_STALEMATE * 0.5;
-            }
-            if (pastAICM) {
-                scores.player += ScoreConfig.PAST_CHECKMATE;
-            }
-            if (pastAISM) {
-                scores.player += ScoreConfig.PAST_STALEMATE * 0.5;
-                scores.ai += ScoreConfig.PAST_STALEMATE * 0.5;
-            }
+            playerScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            playerScore += this.calculateMaterialScore(this.pastBoard, Color.WHITE);
+            aiScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            aiScore += this.calculateMaterialScore(this.pastBoard, Color.BLACK);
+        } else {
+            playerScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            aiScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
         }
 
-        const presentPlayerCM = this.presentBoard.isCheckmate(Color.WHITE);
-        const presentPlayerSM = this.presentBoard.isStalemate(Color.WHITE);
-        const presentAICM = this.presentBoard.isCheckmate(Color.BLACK);
-        const presentAISM = this.presentBoard.isStalemate(Color.BLACK);
-
-        if (presentPlayerCM) {
-            scores.ai += ScoreConfig.PRESENT_CHECKMATE;
-        }
-        if (presentPlayerSM) {
-            scores.player += ScoreConfig.PRESENT_STALEMATE * 0.5;
-            scores.ai += ScoreConfig.PRESENT_STALEMATE * 0.5;
-        }
-        if (presentAICM) {
-            scores.player += ScoreConfig.PRESENT_CHECKMATE;
-        }
-        if (presentAISM) {
-            scores.player += ScoreConfig.PRESENT_STALEMATE * 0.5;
-            scores.ai += ScoreConfig.PRESENT_STALEMATE * 0.5;
-        }
-
-        this.scores = scores;
-        return scores;
+        return {
+            player: playerScore / 100.0,
+            ai: aiScore / 100.0
+        };
     }
 
     getWinnerByScore() {
@@ -958,38 +821,20 @@ class TimelineManager {
         }
         return null;
     }
-
-    addBanishedPiece(piece) {
-        this.banishedPieces.push(piece);
-    }
-
-    getBanishedPieces() {
-        return this.banishedPieces;
-    }
-
-    reset() {
-        this.timelineType = TimelineType.SINGLE;
-        this.presentBoard = new Board(BoardTime.PRESENT);
-        this.pastBoard = null;
-        this.activeBoard = this.presentBoard;
-        this.scores = { player: 0, ai: 0 };
-        this.banishedPieces = [];
-    }
 }
 
-// 导出到全局
 window.ChessTime = {
     PieceType,
     Color,
-    PieceSymbols,
     PieceStatus,
     TimelineType,
     BoardTime,
     MoveType,
     ScoreConfig,
+    PieceSymbols,
+    PieceValue,
     Piece,
     Move,
-    TimeTravelMove,
     Board,
     GameHistory,
     TimelineManager
