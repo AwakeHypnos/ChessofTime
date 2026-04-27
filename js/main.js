@@ -85,7 +85,38 @@
 
             this.savePreTimelineState();
 
-            const success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
+            const historySize = this.history.size();
+            let targetBoard = null;
+            
+            if (historySize >= 4 && historySize % 2 === 0) {
+                const targetIndex = historySize - 3;
+                if (targetIndex >= 0 && targetIndex < this.history.boardStates.length) {
+                    targetBoard = this.history.boardStates[targetIndex];
+                    console.log(`时间旅行目标状态：索引 ${targetIndex} (AI上上次行动后)`);
+                }
+            } else if (historySize >= 2) {
+                const targetIndex = 1;
+                if (targetIndex < this.history.boardStates.length) {
+                    targetBoard = this.history.boardStates[targetIndex];
+                    console.log(`时间旅行目标状态：索引 ${targetIndex} (AI第1次行动后)`);
+                }
+            }
+
+            let success;
+            
+            if (targetBoard) {
+                const targetPiece = targetBoard.getPiece(toRow, toCol);
+                if (targetPiece) {
+                    console.log('时间旅行失败：目标位置在历史状态中已有棋子');
+                    alert('时间旅行失败：目标位置在该历史时间点已有棋子！');
+                    return false;
+                }
+                
+                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol, targetBoard);
+            } else {
+                console.log('时间旅行：历史记录不足，使用当前状态克隆');
+                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
+            }
             
             if (success) {
                 this.board = this.timelineManager.getPresentBoard();

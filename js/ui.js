@@ -151,6 +151,11 @@
 
             this.buttons.timeTravelMode.addEventListener('click', () => this.toggleTimeTravelMode());
 
+            const playerUndoBtn = document.getElementById('player-undo');
+            if (playerUndoBtn) {
+                playerUndoBtn.addEventListener('click', () => this.game.undoMove());
+            }
+
             this.buttons.restartGame.addEventListener('click', () => {
                 this.hideModal('gameOver');
                 this.game.startGame();
