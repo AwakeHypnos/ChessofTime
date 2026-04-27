@@ -220,24 +220,24 @@ class Board {
         return this.boardTime === BoardTime.PRESENT;
     }
 
-    getTimeTravelMoves(row, col) {
+    getTimeTravelMoves(row, col, targetBoard = null) {
         const piece = this.grid[row][col];
         if (!piece || piece.isSpectator() || piece.isBanished()) {
             return [];
         }
 
-        const moves = [];
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const targetPiece = this.grid[r][c];
-                if (!targetPiece) {
-                    moves.push(new Move(row, col, r, c, piece, null));
-                } else if (targetPiece.color !== piece.color) {
-                    moves.push(new Move(row, col, r, c, piece, targetPiece));
-                }
+        const boardToUse = targetBoard || this;
+        const pieceMoves = boardToUse.getPieceMoves(row, col);
+        
+        const validTimeTravelMoves = [];
+        for (const move of pieceMoves) {
+            const targetPiece = boardToUse.getPiece(move.toRow, move.toCol);
+            if (!targetPiece) {
+                validTimeTravelMoves.push(new Move(row, col, move.toRow, move.toCol, piece, null));
             }
         }
-        return moves;
+        
+        return validTimeTravelMoves;
     }
 
     findKing(color) {
@@ -813,22 +813,27 @@ class TimelineManager {
     }
 
     calculateEndGameScores() {
-        let playerScore = 0;
-        let aiScore = 0;
+        let playerTotal = 0;
+        let aiTotal = 0;
 
         if (this.isSplit()) {
-            playerScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
-            playerScore += this.calculateMaterialScore(this.pastBoard, Color.WHITE);
-            aiScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
-            aiScore += this.calculateMaterialScore(this.pastBoard, Color.BLACK);
+            playerTotal += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            playerTotal += this.calculateMaterialScore(this.pastBoard, Color.WHITE);
+            aiTotal += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            aiTotal += this.calculateMaterialScore(this.pastBoard, Color.BLACK);
         } else {
-            playerScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
-            aiScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            playerTotal += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            aiTotal += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
         }
 
+        const playerNetScore = (playerTotal - aiTotal) / 100.0;
+        const aiNetScore = (aiTotal - playerTotal) / 100.0;
+
         return {
-            player: playerScore / 100.0,
-            ai: aiScore / 100.0
+            player: playerNetScore,
+            ai: aiNetScore,
+            playerTotal: playerTotal / 100.0,
+            aiTotal: aiTotal / 100.0
         };
     }
 

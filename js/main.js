@@ -245,7 +245,7 @@
             if (this.isBoardGameOver(targetBoard)) {
                 console.log('当前棋盘已结束，跳过AI移动');
                 this.advanceTurn();
-                if (this.currentTurn === Color.BLACK) {
+                if (this.currentTurn === Color.BLACK && !this.gameOver) {
                     setTimeout(() => this.makeAIMove(), 500);
                 }
                 return;
@@ -257,6 +257,14 @@
                 this.ui.lastMove = { ...aiMove, boardTime: targetBoard.getBoardTime() };
                 this.makeMove(aiMove, targetBoard.getBoardTime());
                 this.ui.renderAllBoards();
+            } else {
+                console.log('AI无合法移动，跳过当前回合');
+                if (timelineManager.isSplit()) {
+                    this.advanceTurn();
+                    if (this.currentTurn === Color.BLACK && !this.gameOver) {
+                        setTimeout(() => this.makeAIMove(), 500);
+                    }
+                }
             }
         }
 
