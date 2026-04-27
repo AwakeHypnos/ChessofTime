@@ -130,6 +130,10 @@
                 
                 console.log('时间旅行成功！时间线已分裂。');
                 console.log('回合顺序：AI往昔 -> AI现在 -> 玩家往昔 -> 玩家现在');
+                
+                if (this.currentTurn === Color.BLACK && !this.gameOver) {
+                    setTimeout(() => this.makeAIMove(), 500);
+                }
             }
 
             return success;
@@ -418,7 +422,7 @@
                 opponent: [...state.capturedPieces.opponent]
             };
 
-            this.currentTurn = state.currentTurn;
+            this.currentTurn = Color.WHITE;
             this.gameOver = false;
 
             this.preTimelineState = null;
