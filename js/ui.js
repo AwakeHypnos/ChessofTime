@@ -362,6 +362,9 @@
             const kingPos = board.findKing(this.game.currentTurn);
             const isInCheck = board.isInCheck(this.game.currentTurn);
             
+            const colLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            const rowLabels = ['8', '7', '6', '5', '4', '3', '2', '1'];
+            
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const square = document.createElement('div');
@@ -369,6 +372,19 @@
                     square.dataset.row = row;
                     square.dataset.col = col;
                     square.dataset.boardTime = boardTime;
+                    
+                    if (col === 0) {
+                        const rowLabel = document.createElement('span');
+                        rowLabel.className = 'coord-label row-label';
+                        rowLabel.textContent = rowLabels[row];
+                        square.appendChild(rowLabel);
+                    }
+                    if (row === 7) {
+                        const colLabel = document.createElement('span');
+                        colLabel.className = 'coord-label col-label';
+                        colLabel.textContent = colLabels[col];
+                        square.appendChild(colLabel);
+                    }
                     
                     const piece = board.getPiece(row, col);
                     if (piece) {
