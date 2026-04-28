@@ -29,6 +29,7 @@
                 present: null
             };
             this.isTimeTravelMode = false;
+            this.pendingPromotion = null;
             this.initElements();
             this.initEventListeners();
         }
@@ -103,8 +104,11 @@
                 gameOver: document.getElementById('game-over-modal'),
                 saveSuccess: document.getElementById('save-success-modal'),
                 loadGame: document.getElementById('load-game-modal'),
-                pause: document.getElementById('pause-modal')
+                pause: document.getElementById('pause-modal'),
+                promotion: document.getElementById('promotion-modal')
             };
+
+            this.promotionChoices = document.getElementById('promotion-choices');
 
             this.saveList = document.getElementById('save-list');
             this.modalSaveList = document.getElementById('modal-save-list');
@@ -513,15 +517,17 @@
                 );
 
                 if (move) {
-                    this.game.makeMove(move, boardTime);
-                    this.selectedSquare = null;
-                    this.validMoves = [];
-                    if (boardTime === BoardTime.PAST) {
-                        this.lastMoves.past = { ...move, boardTime };
+                    const selectedPiece = board.getPiece(this.selectedSquare.row, this.selectedSquare.col);
+                    const isPawnPromotion = selectedPiece && 
+                        selectedPiece.type === PieceType.PAWN && 
+                        selectedPiece.color === Color.WHITE &&
+                        move.toRow === 0;
+
+                    if (isPawnPromotion) {
+                        this.showPromotionDialog(move, boardTime, selectedPiece.color);
                     } else {
-                        this.lastMoves.present = { ...move, boardTime };
+                        this.executeMoveWithPromotion(move, boardTime, null);
                     }
-                    this.renderAllBoards();
                     return;
                 }
 
@@ -726,6 +732,72 @@
 
         hideModal(modalName) {
             this.modals[modalName].classList.add('hidden');
+        }
+
+        showPromotionDialog(move, boardTime, color) {
+            this.pendingPromotion = { move, boardTime, color };
+            
+            const promotionTypes = [
+                PieceType.QUEEN,
+                PieceType.ROOK,
+                PieceType.BISHOP,
+                PieceType.KNIGHT
+            ];
+
+            const symbols = color === Color.WHITE ? {
+                [PieceType.QUEEN]: '♕',
+                [PieceType.ROOK]: '♖',
+                [PieceType.BISHOP]: '♗',
+                [PieceType.KNIGHT]: '♘'
+            } : {
+                [PieceType.QUEEN]: '♛',
+                [PieceType.ROOK]: '♜',
+                [PieceType.BISHOP]: '♝',
+                [PieceType.KNIGHT]: '♞'
+            };
+
+            this.promotionChoices.innerHTML = '';
+            
+            for (const type of promotionTypes) {
+                const choice = document.createElement('div');
+                choice.className = 'promotion-choice';
+                choice.innerHTML = `<span class="piece-icon">${symbols[type]}</span>`;
+                choice.addEventListener('click', () => this.handlePromotionChoice(type));
+                this.promotionChoices.appendChild(choice);
+            }
+
+            this.showModal('promotion');
+        }
+
+        handlePromotionChoice(promotionType) {
+            if (!this.pendingPromotion) return;
+
+            const { move, boardTime } = this.pendingPromotion;
+            this.hideModal('promotion');
+            this.executeMoveWithPromotion(move, boardTime, promotionType);
+            this.pendingPromotion = null;
+        }
+
+        executeMoveWithPromotion(move, boardTime, promotionType) {
+            const moveWithPromotion = new Move(
+                move.fromRow, move.fromCol,
+                move.toRow, move.toCol,
+                move.piece, move.capturedPiece,
+                move.isCastling, move.isEnPassant,
+                promotionType
+            );
+
+            this.game.makeMove(moveWithPromotion, boardTime);
+            this.selectedSquare = null;
+            this.validMoves = [];
+            
+            if (boardTime === BoardTime.PAST) {
+                this.lastMoves.past = { ...moveWithPromotion, boardTime };
+            } else {
+                this.lastMoves.present = { ...moveWithPromotion, boardTime };
+            }
+            
+            this.renderAllBoards();
         }
 
         resetGameUI() {

@@ -478,6 +478,13 @@ class Board {
                     if (!attackOnly) {
                         moves.push(new Move(row, col, newRow, newCol, this.grid[row][col]));
                     }
+                } else if (target.isSpectator()) {
+                    if (!attackOnly) {
+                        moves.push(new Move(row, col, newRow, newCol, this.grid[row][col]));
+                    }
+                    newRow += dr;
+                    newCol += dc;
+                    continue;
                 } else {
                     if (target.color !== color) {
                         moves.push(new Move(row, col, newRow, newCol, this.grid[row][col], target));
@@ -513,6 +520,13 @@ class Board {
                     if (!attackOnly) {
                         moves.push(new Move(row, col, newRow, newCol, this.grid[row][col]));
                     }
+                } else if (target.isSpectator()) {
+                    if (!attackOnly) {
+                        moves.push(new Move(row, col, newRow, newCol, this.grid[row][col]));
+                    }
+                    newRow += dr;
+                    newCol += dc;
+                    continue;
                 } else {
                     if (target.color !== color) {
                         moves.push(new Move(row, col, newRow, newCol, this.grid[row][col], target));

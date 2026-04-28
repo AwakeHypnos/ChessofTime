@@ -553,9 +553,9 @@
             }
 
             if (count === 1) {
-                this.currentTurnIndex = 3;
-            } else {
                 this.currentTurnIndex = 2;
+            } else {
+                this.currentTurnIndex = 3;
             }
 
             const step = this.turnOrder[this.currentTurnIndex];
