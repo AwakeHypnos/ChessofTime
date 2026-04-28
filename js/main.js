@@ -334,13 +334,7 @@
             }
 
             if (this.timelineManager.isSplit()) {
-                if (!this.preTimelineState) {
-                    console.log('无法找到时间旅行前的状态');
-                    alert('无法悔棋到时间旅行之前！');
-                    return false;
-                }
-
-                return this.undoTimeTravel();
+                return this.undoInSplitTimeline();
             }
 
             let undoCount = 0;
@@ -400,6 +394,183 @@
             this.ui.renderAllBoards();
 
             console.log('悔棋成功');
+            return true;
+        }
+
+        undoInSplitTimeline() {
+            const historySize = this.history.size();
+            const timelineManager = this.timelineManager;
+            
+            console.log(`双棋盘悔棋 - currentTurnIndex: ${this.currentTurnIndex}, historySize: ${historySize}`);
+            
+            if (!this.preTimelineState) {
+                console.log('无法找到时间旅行前的状态');
+                alert('无法悔棋！');
+                return false;
+            }
+
+            const currentStep = this.turnOrder[this.currentTurnIndex];
+            const isPlayerTurn = currentStep.color === Color.WHITE;
+            
+            if (!isPlayerTurn) {
+                console.log('当前不是玩家回合，无法悔棋');
+                return false;
+            }
+
+            const lastPlayerMoveInfo = this.findLastPlayerMoveInSplitTimeline();
+            
+            if (!lastPlayerMoveInfo) {
+                console.log('双棋盘状态下没有玩家移动，撤销时间旅行');
+                return this.undoTimeTravel();
+            }
+
+            console.log(`找到最后一次玩家移动 - 棋盘: ${lastPlayerMoveInfo.boardTime}, 移动次数: ${lastPlayerMoveInfo.moveCount}`);
+
+            if (this.currentTurnIndex === 3) {
+                console.log('当前是玩家现在回合，撤销上一次玩家移动（往昔棋盘）');
+                return this.undoPlayerMoves(1);
+            }
+
+            if (this.currentTurnIndex === 2) {
+                if (lastPlayerMoveInfo.moveCount >= 2) {
+                    console.log('当前是玩家往昔回合，撤销两次玩家移动');
+                    return this.undoPlayerMoves(2);
+                } else if (lastPlayerMoveInfo.moveCount === 1) {
+                    console.log('当前是玩家往昔回合，只有一次玩家移动，撤销时间旅行');
+                    return this.undoTimeTravel();
+                } else {
+                    console.log('没有玩家移动，撤销时间旅行');
+                    return this.undoTimeTravel();
+                }
+            }
+
+            console.log('无法确定悔棋逻辑，撤销时间旅行');
+            return this.undoTimeTravel();
+        }
+
+        findLastPlayerMoveInSplitTimeline() {
+            const moves = this.history.moves;
+            const boardStates = this.history.boardStates;
+            let playerMoveCount = 0;
+            let lastPlayerBoardTime = null;
+
+            for (let i = moves.length - 1; i >= 0; i--) {
+                const move = moves[i];
+                
+                if (move.moveType === MoveType.TIME_TRAVEL) {
+                    break;
+                }
+                
+                if (move.piece && move.piece.color === Color.WHITE) {
+                    playerMoveCount++;
+                    if (playerMoveCount === 1 && boardStates[i]) {
+                        lastPlayerBoardTime = boardStates[i].boardTime;
+                    }
+                }
+            }
+
+            if (playerMoveCount === 0) {
+                return null;
+            }
+
+            return {
+                moveCount: playerMoveCount,
+                lastBoardTime: lastPlayerBoardTime
+            };
+        }
+
+        undoPlayerMoves(count) {
+            const timelineManager = this.timelineManager;
+            
+            let playerMovesUndone = 0;
+            let finalPastBoard = null;
+            let finalPresentBoard = null;
+            let lastUndoneWasPast = false;
+
+            while (this.history.size() > 0 && playerMovesUndone < count) {
+                const lastMove = this.history.moves[this.history.moves.length - 1];
+                
+                if (lastMove.moveType === MoveType.TIME_TRAVEL) {
+                    console.log('到达时间旅行点，停止撤销');
+                    break;
+                }
+
+                const isPlayerMove = lastMove.piece && lastMove.piece.color === Color.WHITE;
+                
+                const undoResult = this.history.undo();
+                if (!undoResult) {
+                    break;
+                }
+
+                const { move, board } = undoResult;
+
+                if (isPlayerMove) {
+                    playerMovesUndone++;
+                    lastUndoneWasPast = board.isPastBoard();
+                    
+                    if (move.capturedPiece) {
+                        this.capturedPieces.player.pop();
+                    }
+
+                    if (board.isPastBoard()) {
+                        finalPastBoard = board;
+                        console.log('保存往昔棋盘状态');
+                    } else {
+                        finalPresentBoard = board;
+                        console.log('保存现在棋盘状态');
+                    }
+                } else {
+                    if (move.capturedPiece) {
+                        this.capturedPieces.opponent.pop();
+                    }
+                }
+            }
+
+            if (playerMovesUndone === 0) {
+                console.log('没有玩家移动可以撤销');
+                return this.undoTimeTravel();
+            }
+
+            if (finalPastBoard) {
+                timelineManager.pastBoard = finalPastBoard.clone();
+            }
+            if (finalPresentBoard) {
+                timelineManager.presentBoard = finalPresentBoard.clone();
+                this.board = timelineManager.presentBoard;
+            }
+
+            if (count === 1) {
+                this.currentTurnIndex = 2;
+            } else {
+                this.currentTurnIndex = 3;
+            }
+
+            const step = this.turnOrder[this.currentTurnIndex];
+            this.currentTurn = step.color;
+            timelineManager.setActiveBoard(step.boardTime);
+
+            if (this.history.size() > 0) {
+                const moves = this.history.moves;
+                const lastMove = moves[moves.length - 1];
+                if (lastMove.moveType !== MoveType.TIME_TRAVEL) {
+                    this.ui.lastMove = lastMove;
+                } else {
+                    this.ui.lastMove = null;
+                }
+            } else {
+                this.ui.lastMove = null;
+            }
+
+            this.gameOver = false;
+            this.ui.updateCapturedPieces();
+            this.ui.updateStatusLights();
+            this.ui.updateCheckIndicator();
+            this.ui.selectedSquare = null;
+            this.ui.validMoves = [];
+            this.ui.renderAllBoards();
+            this.updateTimelineDisplay();
+
+            console.log(`悔棋成功 - 撤销了 ${playerMovesUndone} 次玩家移动，回退到 index: ${this.currentTurnIndex}`);
             return true;
         }
 

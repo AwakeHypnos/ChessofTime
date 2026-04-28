@@ -402,6 +402,7 @@ body::after {
     height: 100%;
     padding: 20px;
     gap: 10px;
+    position: relative;
 }
 
 .opponent-area, .player-area {
@@ -1314,12 +1315,78 @@ body::after {
 }
 
 /* 玩家控制区域 */
-.player-controls-area, .opponent-info-area {
+.player-controls-area {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
     gap: 20px;
+}
+
+.opponent-info-area {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 15px;
+    gap: 15px;
+    background: linear-gradient(135deg, 
+        rgba(247, 37, 133, 0.15), 
+        rgba(255, 149, 0, 0.1));
+    border: 2px solid rgba(247, 37, 133, 0.4);
+    border-radius: 10px;
+    box-shadow: 
+        0 0 20px rgba(247, 37, 133, 0.2),
+        inset 0 0 20px rgba(247, 37, 133, 0.05);
+    z-index: 5;
+}
+
+.opponent-info-area .player-info-full {
+    gap: 10px;
+}
+
+.opponent-info-area .player-avatar {
+    width: 50px;
+    height: 50px;
+}
+
+.opponent-info-area .avatar-icon {
+    font-size: 1.5rem;
+}
+
+.opponent-info-area .player-name {
+    font-size: 1rem;
+    color: var(--cyber-pink);
+}
+
+.opponent-info-area .player-details-full {
+    gap: 5px;
+}
+
+.opponent-info-area .player-controls-main {
+    gap: 8px;
+}
+
+.opponent-info-area .captured-pieces-main {
+    padding: 5px 8px;
+    min-height: 30px;
+    max-width: 200px;
+    background: rgba(26, 26, 46, 0.8);
+    border-color: rgba(247, 37, 133, 0.3);
+}
+
+.opponent-info-area .captured-piece {
+    font-size: 1.2rem;
+}
+
+.opponent-info-area .status-lights {
+    gap: 8px;
+}
+
+.opponent-info-area .light-label {
+    font-size: 0.6rem;
 }
 
 .player-info-full {
