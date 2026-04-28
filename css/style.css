@@ -841,6 +841,42 @@ body::after {
     justify-content: center;
 }
 
+.promotion-content {
+    text-align: center;
+}
+
+.promotion-choices {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.promotion-choice {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cyber-dark);
+    border: 2px solid var(--cyber-cyan);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 2.5rem;
+}
+
+.promotion-choice:hover {
+    background: var(--cyber-purple);
+    border-color: var(--cyber-pink);
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--cyber-glow-purple);
+}
+
+.promotion-choice .piece-icon {
+    font-size: 2.5rem;
+}
+
 /* 滚动条样式 */
 ::-webkit-scrollbar {
     width: 8px;
