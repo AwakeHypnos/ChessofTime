@@ -258,8 +258,13 @@
             const aiMove = this.ai.selectBestMove(targetBoard, Color.BLACK);
             
             if (aiMove) {
-                this.ui.lastMove = { ...aiMove, boardTime: targetBoard.getBoardTime() };
-                this.makeMove(aiMove, targetBoard.getBoardTime());
+                const boardTime = targetBoard.getBoardTime();
+                if (boardTime === BoardTime.PAST) {
+                    this.ui.lastMoves.past = { ...aiMove, boardTime };
+                } else {
+                    this.ui.lastMoves.present = { ...aiMove, boardTime };
+                }
+                this.makeMove(aiMove, boardTime);
                 this.ui.renderAllBoards();
             } else {
                 console.log('AI无合法移动，跳过当前回合');
@@ -379,11 +384,19 @@
             this.currentTurn = Color.WHITE;
             this.gameOver = false;
 
+            this.ui.lastMoves = {
+                past: null,
+                present: null
+            };
+
             if (this.history.size() > 0) {
                 const moves = this.history.moves;
-                this.ui.lastMove = moves[moves.length - 1];
-            } else {
-                this.ui.lastMove = null;
+                const lastMove = moves[moves.length - 1];
+                if (lastMove.boardTime === BoardTime.PAST) {
+                    this.ui.lastMoves.past = lastMove;
+                } else {
+                    this.ui.lastMoves.present = lastMove;
+                }
             }
 
             this.ui.updateCapturedPieces();
@@ -540,25 +553,36 @@
             }
 
             if (count === 1) {
-                this.currentTurnIndex = 2;
-            } else {
                 this.currentTurnIndex = 3;
+            } else {
+                this.currentTurnIndex = 2;
             }
 
             const step = this.turnOrder[this.currentTurnIndex];
             this.currentTurn = step.color;
             timelineManager.setActiveBoard(step.boardTime);
 
+            this.ui.lastMoves = {
+                past: null,
+                present: null
+            };
+
             if (this.history.size() > 0) {
                 const moves = this.history.moves;
-                const lastMove = moves[moves.length - 1];
-                if (lastMove.moveType !== MoveType.TIME_TRAVEL) {
-                    this.ui.lastMove = lastMove;
-                } else {
-                    this.ui.lastMove = null;
+                for (let i = moves.length - 1; i >= 0; i--) {
+                    const move = moves[i];
+                    if (move.moveType === MoveType.TIME_TRAVEL) {
+                        break;
+                    }
+                    if (move.boardTime === BoardTime.PAST && !this.ui.lastMoves.past) {
+                        this.ui.lastMoves.past = move;
+                    } else if (move.boardTime === BoardTime.PRESENT && !this.ui.lastMoves.present) {
+                        this.ui.lastMoves.present = move;
+                    }
+                    if (this.ui.lastMoves.past && this.ui.lastMoves.present) {
+                        break;
+                    }
                 }
-            } else {
-                this.ui.lastMove = null;
             }
 
             this.gameOver = false;
@@ -600,11 +624,19 @@
             this.turnOrder = [];
             this.currentTurnIndex = 0;
 
+            this.ui.lastMoves = {
+                past: null,
+                present: null
+            };
+
             if (this.history.size() > 0) {
                 const moves = this.history.moves;
-                this.ui.lastMove = moves[moves.length - 1];
-            } else {
-                this.ui.lastMove = null;
+                const lastMove = moves[moves.length - 1];
+                if (lastMove.boardTime === BoardTime.PAST) {
+                    this.ui.lastMoves.past = lastMove;
+                } else {
+                    this.ui.lastMoves.present = lastMove;
+                }
             }
 
             this.ui.updateCapturedPieces();
@@ -848,7 +880,21 @@
                 this.ui.resetGameUI();
                 
                 if (this.history.moves.length > 0) {
-                    this.ui.lastMove = this.history.moves[this.history.moves.length - 1];
+                    const moves = this.history.moves;
+                    for (let i = moves.length - 1; i >= 0; i--) {
+                        const move = moves[i];
+                        if (move.moveType === MoveType.TIME_TRAVEL) {
+                            break;
+                        }
+                        if (move.boardTime === BoardTime.PAST && !this.ui.lastMoves.past) {
+                            this.ui.lastMoves.past = move;
+                        } else if (move.boardTime === BoardTime.PRESENT && !this.ui.lastMoves.present) {
+                            this.ui.lastMoves.present = move;
+                        }
+                        if (this.ui.lastMoves.past && this.ui.lastMoves.present) {
+                            break;
+                        }
+                    }
                     this.ui.renderAllBoards();
                 }
 

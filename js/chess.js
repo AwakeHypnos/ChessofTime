@@ -226,6 +226,31 @@ class Board {
             return [];
         }
 
+        if (piece.type === PieceType.KING) {
+            console.log('王不能进行时间穿越');
+            return [];
+        }
+
+        const isInCheck = this.isInCheck(piece.color);
+        
+        if (isInCheck) {
+            const kingPos = this.findKing(piece.color);
+            if (kingPos) {
+                const opponentColor = piece.color === Color.WHITE ? Color.BLACK : Color.WHITE;
+                const attackingPieces = this.findAttackingPieces(kingPos.row, kingPos.col, opponentColor);
+                
+                for (const attacker of attackingPieces) {
+                    const isPieceBlocking = this.isPieceBlockingAttack(
+                        row, col, kingPos, attacker
+                    );
+                    if (isPieceBlocking) {
+                        console.log('棋子正遮挡王，不能进行时间穿越');
+                        return [];
+                    }
+                }
+            }
+        }
+
         const boardToUse = targetBoard || this;
         const pieceMoves = boardToUse.getPieceMoves(row, col);
         
@@ -238,6 +263,83 @@ class Board {
         }
         
         return validTimeTravelMoves;
+    }
+
+    findAttackingPieces(targetRow, targetCol, attackingColor) {
+        const attackers = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = this.grid[r][c];
+                if (piece && piece.color === attackingColor && piece.isNormal()) {
+                    const moves = this.getPieceMoves(r, c, true);
+                    for (const move of moves) {
+                        if (move.toRow === targetRow && move.toCol === targetCol) {
+                            attackers.push({ row: r, col: c, piece });
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return attackers;
+    }
+
+    isPieceBlockingAttack(pieceRow, pieceCol, kingPos, attacker) {
+        const piece = this.grid[pieceRow][pieceCol];
+        if (!piece) return false;
+
+        const { row: attackerRow, col: attackerCol } = attacker;
+        const { row: kingRow, col: kingCol } = kingPos;
+
+        const attackerPiece = attacker.piece;
+        if (!attackerPiece) return false;
+
+        if (attackerPiece.type === PieceType.KNIGHT) {
+            return false;
+        }
+
+        const isPieceBetweenKingAndAttacker = this.isSquareBetweenPoints(
+            pieceRow, pieceCol,
+            attackerRow, attackerCol,
+            kingRow, kingCol
+        );
+
+        return isPieceBetweenKingAndAttacker;
+    }
+
+    isSquareBetweenPoints(row, col, fromRow, fromCol, toRow, toCol) {
+        const dr = toRow - fromRow;
+        const dc = toCol - fromCol;
+
+        if (dr === 0) {
+            if (row !== fromRow) return false;
+            const minCol = Math.min(fromCol, toCol);
+            const maxCol = Math.max(fromCol, toCol);
+            return col > minCol && col < maxCol;
+        }
+
+        if (dc === 0) {
+            if (col !== fromCol) return false;
+            const minRow = Math.min(fromRow, toRow);
+            const maxRow = Math.max(fromRow, toRow);
+            return row > minRow && row < maxRow;
+        }
+
+        if (Math.abs(dr) === Math.abs(dc)) {
+            const dRow = row - fromRow;
+            const dCol = col - fromCol;
+            
+            if (Math.abs(dRow) !== Math.abs(dCol)) return false;
+            
+            const signRow = dr > 0 ? 1 : -1;
+            const signCol = dc > 0 ? 1 : -1;
+            
+            if (dRow * signRow < 0 || dCol * signCol < 0) return false;
+            
+            return Math.abs(dRow) < Math.abs(dr);
+        }
+
+        return false;
     }
 
     findKing(color) {

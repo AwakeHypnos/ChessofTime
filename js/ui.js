@@ -24,7 +24,10 @@
             this.selectedSquare = null;
             this.validMoves = [];
             this.timeTravelMoves = [];
-            this.lastMove = null;
+            this.lastMoves = {
+                past: null,
+                present: null
+            };
             this.isTimeTravelMode = false;
             this.initElements();
             this.initEventListeners();
@@ -422,24 +425,39 @@
                             m.toRow === row && m.toCol === col
                         );
                         if (isTimeTravelMove) {
-                            square.classList.add('valid-move');
-                            square.style.boxShadow = 'inset 0 0 20px rgba(157, 78, 221, 0.6)';
+                            square.classList.add('time-travel-move');
                         }
                     } else {
-                        isValidMove = this.validMoves.some(m => 
-                            m.toRow === row && m.toCol === col
-                        );
-                        if (isValidMove) {
-                            const targetPiece = board.getPiece(row, col);
-                            square.classList.add(targetPiece ? 'valid-capture' : 'valid-move');
+                        if (this.validMoves) {
+                            isValidMove = this.validMoves.some(m => 
+                                m.toRow === row && m.toCol === col
+                            );
+                            if (isValidMove) {
+                                const targetPiece = board.getPiece(row, col);
+                                if (targetPiece) {
+                                    square.classList.add('valid-capture');
+                                } else {
+                                    square.classList.add('valid-move');
+                                    square.style.boxShadow = 'inset 0 0 20px rgba(157, 78, 221, 0.6)';
+                                }
+                            }
+                        } else {
+                            isValidMove = this.validMoves.some(m => 
+                                m.toRow === row && m.toCol === col
+                            );
+                            if (isValidMove) {
+                                const targetPiece = board.getPiece(row, col);
+                                square.classList.add(targetPiece ? 'valid-capture' : 'valid-move');
+                            }
                         }
                     }
 
-                    if (this.lastMove && this.lastMove.boardTime === boardTime) {
-                        if (this.lastMove.fromRow === row && this.lastMove.fromCol === col) {
+                    const boardLastMove = boardTime === BoardTime.PAST ? this.lastMoves.past : this.lastMoves.present;
+                    if (boardLastMove) {
+                        if (boardLastMove.fromRow === row && boardLastMove.fromCol === col) {
                             square.classList.add('last-move-from');
                         }
-                        if (this.lastMove.toRow === row && this.lastMove.toCol === col) {
+                        if (boardLastMove.toRow === row && boardLastMove.toCol === col) {
                             square.classList.add('last-move-to');
                         }
                     }
@@ -498,7 +516,11 @@
                     this.game.makeMove(move, boardTime);
                     this.selectedSquare = null;
                     this.validMoves = [];
-                    this.lastMove = { ...move, boardTime };
+                    if (boardTime === BoardTime.PAST) {
+                        this.lastMoves.past = { ...move, boardTime };
+                    } else {
+                        this.lastMoves.present = { ...move, boardTime };
+                    }
                     this.renderAllBoards();
                     return;
                 }
@@ -537,7 +559,7 @@
                         this.isTimeTravelMode = false;
                         this.buttons.timeTravelMode.classList.remove('active');
                         this.timeTravelHint.classList.add('hidden');
-                        this.lastMove = { ...timeMove, boardTime: BoardTime.PRESENT };
+                        this.lastMoves.present = { ...timeMove, boardTime: BoardTime.PRESENT };
                         this.renderAllBoards();
                     }
                     return;
@@ -710,7 +732,10 @@
             this.selectedSquare = null;
             this.validMoves = [];
             this.timeTravelMoves = [];
-            this.lastMove = null;
+            this.lastMoves = {
+                past: null,
+                present: null
+            };
             this.isTimeTravelMode = false;
             this.buttons.timeTravelMode.classList.remove('active');
             this.timeTravelHint.classList.add('hidden');
