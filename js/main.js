@@ -282,17 +282,97 @@
                 return;
             }
 
-            const aiMove = this.ai.selectBestMove(targetBoard, Color.BLACK);
+            const canTimeTravelNow = !timelineManager.isSplit() && 
+                                    this.history.size() >= 2 &&
+                                    targetBoard.getBoardTime() === BoardTime.PRESENT;
+
+            let aiMoveResult;
             
-            if (aiMove) {
+            if (canTimeTravelNow) {
+                aiMoveResult = this.ai.selectBestMoveWithOptions(
+                    targetBoard, 
+                    Color.BLACK, 
+                    this.history, 
+                    true
+                );
+            } else {
+                aiMoveResult = this.ai.selectBestMoveWithOptions(
+                    targetBoard, 
+                    Color.BLACK, 
+                    null, 
+                    false
+                );
+            }
+            
+            if (aiMoveResult && aiMoveResult.move) {
                 const boardTime = targetBoard.getBoardTime();
-                if (boardTime === BoardTime.PAST) {
-                    this.ui.lastMoves.past = { ...aiMove, boardTime };
+                
+                if (aiMoveResult.type === 'time_travel') {
+                    console.log('AI执行时间旅行移动！');
+                    const { fromRow, fromCol, toRow, toCol } = aiMoveResult.move;
+                    
+                    this.savePreTimelineState();
+                    
+                    const historySize = this.history.size();
+                    let targetBoardState = null;
+                    
+                    if (historySize >= 4 && historySize % 2 === 0) {
+                        const targetIndex = historySize - 3;
+                        if (targetIndex >= 0 && targetIndex < this.history.boardStates.length) {
+                            targetBoardState = this.history.boardStates[targetIndex];
+                        }
+                    } else if (historySize >= 2) {
+                        const targetIndex = 1;
+                        if (targetIndex < this.history.boardStates.length) {
+                            targetBoardState = this.history.boardStates[targetIndex];
+                        }
+                    }
+
+                    let success = false;
+                    
+                    if (targetBoardState) {
+                        const targetPiece = targetBoardState.getPiece(toRow, toCol);
+                        if (!targetPiece) {
+                            success = this.timelineManager.performTimeTravel(
+                                fromRow, fromCol, toRow, toCol, targetBoardState
+                            );
+                        }
+                    }
+                    
+                    if (!success) {
+                        success = this.timelineManager.performTimeTravel(
+                            fromRow, fromCol, toRow, toCol
+                        );
+                    }
+                    
+                    if (success) {
+                        this.board = this.timelineManager.getPresentBoard();
+                        
+                        const piece = this.timelineManager.getPastBoard().getPiece(toRow, toCol);
+                        const timeMove = new Move(fromRow, fromCol, toRow, toCol, piece, null);
+                        timeMove.moveType = MoveType.TIME_TRAVEL;
+                        timeMove.boardTime = BoardTime.PAST;
+                        this.history.addMove(timeMove, this.timelineManager.getPresentBoard());
+                        
+                        this.setupTurnOrder(Color.BLACK);
+                        
+                        console.log('AI时间旅行成功！时间线已分裂。');
+                        console.log('回合顺序：玩家往昔 -> 玩家现在 -> AI往昔 -> AI现在');
+                        
+                        this.ui.lastMoves.past = { ...aiMoveResult.move, boardTime: BoardTime.PAST };
+                        this.ui.renderAllBoards();
+                        this.updateTimelineDisplay();
+                    }
                 } else {
-                    this.ui.lastMoves.present = { ...aiMove, boardTime };
+                    const move = aiMoveResult.move;
+                    if (boardTime === BoardTime.PAST) {
+                        this.ui.lastMoves.past = { ...move, boardTime };
+                    } else {
+                        this.ui.lastMoves.present = { ...move, boardTime };
+                    }
+                    this.makeMove(move, boardTime);
+                    this.ui.renderAllBoards();
                 }
-                this.makeMove(aiMove, boardTime);
-                this.ui.renderAllBoards();
             } else {
                 console.log('AI无合法移动，跳过当前回合');
                 if (timelineManager.isSplit()) {
