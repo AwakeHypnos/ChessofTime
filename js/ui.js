@@ -196,7 +196,7 @@
 
         toggleTimeTravelMode() {
             if (!this.game.canTimeTravel()) {
-                alert('时间线已分裂，无法再次进行时间旅行！');
+                alert('您已经进行过时间旅行，无法再次时间旅行！');
                 return;
             }
 
@@ -232,21 +232,26 @@
 
         updateTimelineDisplay() {
             const timelineManager = this.game.timelineManager;
+            const canPlayerTimeTravel = this.game.canTimeTravel();
             
             if (timelineManager.isSplit()) {
                 this.timelineElements.mode.textContent = '时间线分裂';
                 this.timelineElements.mode.classList.add('split');
                 this.boardContainers.past.classList.remove('hidden');
                 this.timelineDivider.classList.remove('hidden');
-                this.buttons.timeTravelMode.classList.add('disabled');
-                this.buttons.timeTravelMode.disabled = true;
             } else {
                 this.timelineElements.mode.textContent = '单一时间线';
                 this.timelineElements.mode.classList.remove('split');
                 this.boardContainers.past.classList.add('hidden');
                 this.timelineDivider.classList.add('hidden');
+            }
+            
+            if (canPlayerTimeTravel) {
                 this.buttons.timeTravelMode.classList.remove('disabled');
                 this.buttons.timeTravelMode.disabled = false;
+            } else {
+                this.buttons.timeTravelMode.classList.add('disabled');
+                this.buttons.timeTravelMode.disabled = true;
             }
 
             this.updateScores();
@@ -427,7 +432,7 @@
                     let isValidMove = false;
                     let isTimeTravelMove = false;
 
-                    if (this.isTimeTravelMode && !this.game.timelineManager.isSplit()) {
+                    if (this.isTimeTravelMode && boardTime === BoardTime.PRESENT) {
                         isTimeTravelMove = this.timeTravelMoves.some(m => 
                             m.toRow === row && m.toCol === col
                         );
@@ -483,6 +488,15 @@
                 return;
             }
 
+            if (this.isTimeTravelMode) {
+                if (boardTime !== BoardTime.PRESENT) {
+                    return;
+                }
+                const board = timelineManager.getPresentBoard();
+                this.handleTimeTravelClick(row, col, board);
+                return;
+            }
+
             const activeBoard = timelineManager.getActiveBoard();
             if (timelineManager.isSplit() && activeBoard.getBoardTime() !== boardTime) {
                 return;
@@ -493,11 +507,6 @@
                 timelineManager.getPresentBoard();
 
             if (!board) return;
-
-            if (this.isTimeTravelMode && !timelineManager.isSplit()) {
-                this.handleTimeTravelClick(row, col, board);
-                return;
-            }
 
             if (this.game.currentTurn !== Color.WHITE) {
                 return;
