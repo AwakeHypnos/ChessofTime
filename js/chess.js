@@ -360,7 +360,7 @@ class Board {
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const piece = this.grid[r][c];
-                if (piece && piece.color === attackingColor && piece.isNormal()) {
+                if (piece && piece.color === attackingColor && !piece.isBanished()) {
                     const moves = this.getPieceMoves(r, c, true);
                     for (const move of moves) {
                         if (move.toRow === row && move.toCol === col) {

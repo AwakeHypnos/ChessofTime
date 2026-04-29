@@ -246,13 +246,14 @@
                 return;
             }
 
-            const otherBoard = sourceBoardTime === BoardTime.PAST ? 
-                timelineManager.getPresentBoard() : 
-                timelineManager.getPastBoard();
+            if (sourceBoardTime === BoardTime.PRESENT) {
+                return;
+            }
 
-            const found = timelineManager.findPieceByOriginalId(otherBoard, capturedPiece.originalId);
+            const presentBoard = timelineManager.getPresentBoard();
+            const found = timelineManager.findPieceByOriginalId(presentBoard, capturedPiece.originalId);
             if (found) {
-                otherBoard.setPiece(found.row, found.col, null);
+                presentBoard.setPiece(found.row, found.col, null);
                 
                 if (found.piece.type === PieceType.KING) {
                     console.log(`同步移除王: ${found.piece.color} at (${found.row}, ${found.col})`);
