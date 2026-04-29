@@ -250,10 +250,6 @@
         }
 
         syncCapturedPieceBetweenBoards(capturedPiece, sourceBoardTime) {
-            if (!capturedPiece.originalId) {
-                return;
-            }
-
             const timelineManager = this.timelineManager;
             if (!timelineManager.isSplit()) {
                 return;
@@ -263,15 +259,52 @@
                 return;
             }
 
+            if (capturedPiece.isSpectator()) {
+                console.log('观众棋子被吃掉，不同步到现在棋盘');
+                return;
+            }
+
             const presentBoard = timelineManager.getPresentBoard();
-            const found = timelineManager.findPieceByOriginalId(presentBoard, capturedPiece.originalId);
+            let found = null;
+
+            if (capturedPiece.originalId) {
+                found = timelineManager.findPieceByOriginalId(presentBoard, capturedPiece.originalId);
+                if (found) {
+                    console.log(`通过 originalId 找到对应棋子: ${capturedPiece.originalId}`);
+                }
+            }
+
+            if (!found && (capturedPiece.type === PieceType.KING || capturedPiece.type === PieceType.QUEEN)) {
+                console.log(`未通过 originalId 找到，尝试按类型和颜色匹配...`);
+                found = this.findPieceByTypeAndColor(presentBoard, capturedPiece.type, capturedPiece.color);
+                if (found) {
+                    console.log(`通过类型和颜色找到对应棋子: ${capturedPiece.type}`);
+                }
+            }
+
             if (found) {
                 presentBoard.setPiece(found.row, found.col, null);
                 
                 if (found.piece.type === PieceType.KING) {
                     console.log(`同步移除王: ${found.piece.color} at (${found.row}, ${found.col})`);
+                } else if (found.piece.type === PieceType.QUEEN) {
+                    console.log(`同步移除后: ${found.piece.color} at (${found.row}, ${found.col})`);
+                }
+            } else {
+                console.log(`未找到对应棋子，无法同步: type=${capturedPiece.type}, color=${capturedPiece.color}, originalId=${capturedPiece.originalId}`);
+            }
+        }
+
+        findPieceByTypeAndColor(board, type, color) {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board.getPiece(row, col);
+                    if (piece && piece.type === type && piece.color === color && piece.isNormal()) {
+                        return { row, col, piece };
+                    }
                 }
             }
+            return null;
         }
 
         makeAIMove() {
