@@ -371,8 +371,10 @@
             
             boardElement.innerHTML = '';
             
-            const kingPos = board.findKing(this.game.currentTurn);
-            const isInCheck = board.isInCheck(this.game.currentTurn);
+            const whiteKingPos = board.findKing(Color.WHITE);
+            const blackKingPos = board.findKing(Color.BLACK);
+            const isWhiteInCheck = board.isInCheck(Color.WHITE);
+            const isBlackInCheck = board.isInCheck(Color.BLACK);
             
             const colLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
             const rowLabels = ['8', '7', '6', '5', '4', '3', '2', '1'];
@@ -410,7 +412,8 @@
                         square.appendChild(pieceElement);
                     }
 
-                    if (isInCheck && kingPos && kingPos.row === row && kingPos.col === col) {
+                    if ((isWhiteInCheck && whiteKingPos && whiteKingPos.row === row && whiteKingPos.col === col) ||
+                        (isBlackInCheck && blackKingPos && blackKingPos.row === row && blackKingPos.col === col)) {
                         square.classList.add('check-square');
                     }
 

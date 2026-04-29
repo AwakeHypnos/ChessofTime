@@ -760,6 +760,28 @@ body::after {
     box-shadow: inset 0 0 20px var(--cyber-glow-red);
 }
 
+.square.time-travel-move::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(157, 78, 221, 0.5);
+    box-shadow: 0 0 15px var(--cyber-glow-purple);
+    animation: timeTravelPulse 1s ease-in-out infinite;
+}
+
+@keyframes timeTravelPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 15px var(--cyber-glow-purple);
+    }
+    50% { 
+        transform: scale(1.2);
+        box-shadow: 0 0 25px var(--cyber-glow-pink);
+    }
+}
+
 .square.last-move-from {
     box-shadow: inset 0 0 30px var(--cyber-glow-yellow);
     background: linear-gradient(135deg, rgba(255, 214, 10, 0.2), rgba(255, 214, 10, 0.1)) !important;

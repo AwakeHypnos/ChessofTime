@@ -208,6 +208,8 @@
                 } else {
                     this.capturedPieces.opponent.push(move.capturedPiece);
                 }
+                
+                this.syncCapturedPieceBetweenBoards(move.capturedPiece, boardTime);
             }
 
             this.history.addMove(move, targetBoard);
@@ -232,6 +234,30 @@
             }
 
             return true;
+        }
+
+        syncCapturedPieceBetweenBoards(capturedPiece, sourceBoardTime) {
+            if (!capturedPiece.originalId) {
+                return;
+            }
+
+            const timelineManager = this.timelineManager;
+            if (!timelineManager.isSplit()) {
+                return;
+            }
+
+            const otherBoard = sourceBoardTime === BoardTime.PAST ? 
+                timelineManager.getPresentBoard() : 
+                timelineManager.getPastBoard();
+
+            const found = timelineManager.findPieceByOriginalId(otherBoard, capturedPiece.originalId);
+            if (found) {
+                otherBoard.setPiece(found.row, found.col, null);
+                
+                if (found.piece.type === PieceType.KING) {
+                    console.log(`同步移除王: ${found.piece.color} at (${found.row}, ${found.col})`);
+                }
+            }
         }
 
         makeAIMove() {

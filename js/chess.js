@@ -79,6 +79,7 @@ class Piece {
         this.hasMoved = false;
         this.status = PieceStatus.NORMAL;
         this.isFromTimeTravel = false;
+        this.originalId = null;
     }
 
     getSymbol() {
@@ -90,6 +91,7 @@ class Piece {
         piece.hasMoved = this.hasMoved;
         piece.status = this.status;
         piece.isFromTimeTravel = this.isFromTimeTravel;
+        piece.originalId = this.originalId;
         return piece;
     }
 
@@ -868,7 +870,41 @@ class TimelineManager {
         this.timelineType = TimelineType.SPLIT;
         this.activeBoard = this.presentBoard;
         
+        this.setupOriginalPieceIds();
+        
         return true;
+    }
+
+    setupOriginalPieceIds() {
+        let idCounter = 0;
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const presentPiece = this.presentBoard.getPiece(row, col);
+                const pastPiece = this.pastBoard.getPiece(row, col);
+                
+                if (presentPiece && pastPiece && 
+                    presentPiece.type === pastPiece.type && 
+                    presentPiece.color === pastPiece.color) {
+                    const originalId = `orig_${idCounter++}`;
+                    presentPiece.originalId = originalId;
+                    pastPiece.originalId = originalId;
+                }
+            }
+        }
+    }
+
+    findPieceByOriginalId(board, originalId) {
+        if (!originalId) return null;
+        
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board.getPiece(row, col);
+                if (piece && piece.originalId === originalId) {
+                    return { row, col, piece };
+                }
+            }
+        }
+        return null;
     }
 
     performTimeTravel(fromRow, fromCol, toRow, toCol, targetBoard = null) {
