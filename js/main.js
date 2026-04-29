@@ -75,15 +75,23 @@
         }
 
         canTimeTravel() {
-            return this.timelineManager.canTimeTravel();
+            return this.timelineManager.canTimeTravelForColor(Color.WHITE);
+        }
+
+        canAITimeTravel() {
+            return this.timelineManager.canTimeTravelForColor(Color.BLACK);
         }
 
         performTimeTravel(fromRow, fromCol, toRow, toCol) {
             if (!this.canTimeTravel()) {
+                console.log('玩家已经进行过时间旅行，无法再次时间旅行');
                 return false;
             }
 
-            this.savePreTimelineState();
+            const isFirstTimeTravel = !this.timelineManager.hasAnyTimeTraveled();
+            if (isFirstTimeTravel) {
+                this.savePreTimelineState();
+            }
 
             const historySize = this.history.size();
             let targetBoard = null;
@@ -112,10 +120,10 @@
                     return false;
                 }
                 
-                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol, targetBoard);
+                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol, Color.WHITE, targetBoard);
             } else {
                 console.log('时间旅行：历史记录不足，使用当前状态克隆');
-                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol);
+                success = this.timelineManager.performTimeTravel(fromRow, fromCol, toRow, toCol, Color.WHITE);
             }
             
             if (success) {
@@ -126,10 +134,15 @@
                 timeMove.moveType = MoveType.TIME_TRAVEL;
                 this.history.addMove(timeMove, this.timelineManager.getPresentBoard());
                 
-                this.setupTurnOrder(Color.WHITE);
-                
-                console.log('时间旅行成功！时间线已分裂。');
-                console.log('回合顺序：AI往昔 -> AI现在 -> 玩家往昔 -> 玩家现在');
+                if (isFirstTimeTravel) {
+                    this.setupTurnOrder(Color.WHITE);
+                    
+                    console.log('玩家时间旅行成功！时间线已分裂。');
+                    console.log('回合顺序：AI往昔 -> AI现在 -> 玩家往昔 -> 玩家现在');
+                } else {
+                    console.log('玩家第二次时间旅行成功！');
+                    this.advanceTurn();
+                }
                 
                 if (this.currentTurn === Color.BLACK && !this.gameOver) {
                     setTimeout(() => this.makeAIMove(), 500);
@@ -282,7 +295,7 @@
                 return;
             }
 
-            const canTimeTravelNow = !timelineManager.isSplit() && 
+            const canTimeTravelNow = this.canAITimeTravel() && 
                                     this.history.size() >= 2 &&
                                     targetBoard.getBoardTime() === BoardTime.PRESENT;
 
@@ -311,7 +324,10 @@
                     console.log('AI执行时间旅行移动！');
                     const { fromRow, fromCol, toRow, toCol } = aiMoveResult.move;
                     
-                    this.savePreTimelineState();
+                    const isFirstTimeTravel = !timelineManager.hasAnyTimeTraveled();
+                    if (isFirstTimeTravel) {
+                        this.savePreTimelineState();
+                    }
                     
                     const historySize = this.history.size();
                     let targetBoardState = null;
@@ -334,14 +350,14 @@
                         const targetPiece = targetBoardState.getPiece(toRow, toCol);
                         if (!targetPiece) {
                             success = this.timelineManager.performTimeTravel(
-                                fromRow, fromCol, toRow, toCol, targetBoardState
+                                fromRow, fromCol, toRow, toCol, Color.BLACK, targetBoardState
                             );
                         }
                     }
                     
                     if (!success) {
                         success = this.timelineManager.performTimeTravel(
-                            fromRow, fromCol, toRow, toCol
+                            fromRow, fromCol, toRow, toCol, Color.BLACK
                         );
                     }
                     
@@ -354,10 +370,15 @@
                         timeMove.boardTime = BoardTime.PAST;
                         this.history.addMove(timeMove, this.timelineManager.getPresentBoard());
                         
-                        this.setupTurnOrder(Color.BLACK);
-                        
-                        console.log('AI时间旅行成功！时间线已分裂。');
-                        console.log('回合顺序：玩家往昔 -> 玩家现在 -> AI往昔 -> AI现在');
+                        if (isFirstTimeTravel) {
+                            this.setupTurnOrder(Color.BLACK);
+                            
+                            console.log('AI时间旅行成功！时间线已分裂。');
+                            console.log('回合顺序：玩家往昔 -> 玩家现在 -> AI往昔 -> AI现在');
+                        } else {
+                            console.log('AI第二次时间旅行成功！');
+                            this.advanceTurn();
+                        }
                         
                         this.ui.lastMoves.past = { ...aiMoveResult.move, boardTime: BoardTime.PAST };
                         this.ui.renderAllBoards();

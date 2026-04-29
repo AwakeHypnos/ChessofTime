@@ -821,6 +821,8 @@ class TimelineManager {
         this.activeBoard = this.presentBoard;
         this.timelineType = TimelineType.SINGLE;
         this.banishedPieces = [];
+        this.whiteHasTimeTraveled = false;
+        this.blackHasTimeTraveled = false;
     }
 
     getPresentBoard() {
@@ -849,6 +851,38 @@ class TimelineManager {
 
     canTimeTravel() {
         return !this.isSplit();
+    }
+
+    canTimeTravelForColor(color) {
+        if (color === Color.WHITE) {
+            return !this.whiteHasTimeTraveled;
+        } else {
+            return !this.blackHasTimeTraveled;
+        }
+    }
+
+    hasTimeTraveled(color) {
+        if (color === Color.WHITE) {
+            return this.whiteHasTimeTraveled;
+        } else {
+            return this.blackHasTimeTraveled;
+        }
+    }
+
+    setHasTimeTraveled(color) {
+        if (color === Color.WHITE) {
+            this.whiteHasTimeTraveled = true;
+        } else {
+            this.blackHasTimeTraveled = true;
+        }
+    }
+
+    hasAnyTimeTraveled() {
+        return this.whiteHasTimeTraveled || this.blackHasTimeTraveled;
+    }
+
+    haveBothTimeTraveled() {
+        return this.whiteHasTimeTraveled && this.blackHasTimeTraveled;
     }
 
     getBanishedPieces() {
@@ -907,8 +941,9 @@ class TimelineManager {
         return null;
     }
 
-    performTimeTravel(fromRow, fromCol, toRow, toCol, targetBoard = null) {
-        if (!this.canTimeTravel()) {
+    performTimeTravel(fromRow, fromCol, toRow, toCol, color, targetBoard = null) {
+        if (!this.canTimeTravelForColor(color)) {
+            console.log(`${color === Color.WHITE ? '玩家' : 'AI'} 已经进行过时间旅行，无法再次时间旅行`);
             return false;
         }
 
@@ -917,12 +952,19 @@ class TimelineManager {
             return false;
         }
 
-        const targetPiece = this.presentBoard.getPiece(toRow, toCol);
+        if (piece.color !== color) {
+            console.log('只能时间旅行自己的棋子');
+            return false;
+        }
 
-        if (targetBoard) {
-            this.splitTimeline(targetBoard);
-        } else {
-            this.splitTimeline();
+        const isFirstTimeTravel = !this.hasAnyTimeTraveled();
+
+        if (isFirstTimeTravel) {
+            if (targetBoard) {
+                this.splitTimeline(targetBoard);
+            } else {
+                this.splitTimeline();
+            }
         }
 
         const timeTravelPiece = new Piece(piece.type, piece.color);
@@ -940,7 +982,12 @@ class TimelineManager {
 
         this.pastBoard.setPiece(toRow, toCol, timeTravelPiece);
 
+        this.setHasTimeTraveled(color);
+
         this.activeBoard = this.presentBoard;
+
+        console.log(`${color === Color.WHITE ? '玩家' : 'AI'} 成功进行时间旅行`);
+        console.log(`当前状态：玩家已旅行: ${this.whiteHasTimeTraveled}, AI已旅行: ${this.blackHasTimeTraveled}`);
 
         return true;
     }
