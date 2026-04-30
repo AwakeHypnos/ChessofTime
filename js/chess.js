@@ -146,28 +146,48 @@ class Board {
     }
 
     setupInitialPosition() {
+        let idCounter = 0;
+        
         this.grid[0][0] = new Piece(PieceType.ROOK, Color.BLACK);
+        this.grid[0][0].originalId = `orig_${idCounter++}`;
         this.grid[0][1] = new Piece(PieceType.KNIGHT, Color.BLACK);
+        this.grid[0][1].originalId = `orig_${idCounter++}`;
         this.grid[0][2] = new Piece(PieceType.BISHOP, Color.BLACK);
+        this.grid[0][2].originalId = `orig_${idCounter++}`;
         this.grid[0][3] = new Piece(PieceType.QUEEN, Color.BLACK);
+        this.grid[0][3].originalId = `orig_${idCounter++}`;
         this.grid[0][4] = new Piece(PieceType.KING, Color.BLACK);
+        this.grid[0][4].originalId = `orig_${idCounter++}`;
         this.grid[0][5] = new Piece(PieceType.BISHOP, Color.BLACK);
+        this.grid[0][5].originalId = `orig_${idCounter++}`;
         this.grid[0][6] = new Piece(PieceType.KNIGHT, Color.BLACK);
+        this.grid[0][6].originalId = `orig_${idCounter++}`;
         this.grid[0][7] = new Piece(PieceType.ROOK, Color.BLACK);
+        this.grid[0][7].originalId = `orig_${idCounter++}`;
         for (let col = 0; col < 8; col++) {
             this.grid[1][col] = new Piece(PieceType.PAWN, Color.BLACK);
+            this.grid[1][col].originalId = `orig_${idCounter++}`;
         }
 
         this.grid[7][0] = new Piece(PieceType.ROOK, Color.WHITE);
+        this.grid[7][0].originalId = `orig_${idCounter++}`;
         this.grid[7][1] = new Piece(PieceType.KNIGHT, Color.WHITE);
+        this.grid[7][1].originalId = `orig_${idCounter++}`;
         this.grid[7][2] = new Piece(PieceType.BISHOP, Color.WHITE);
+        this.grid[7][2].originalId = `orig_${idCounter++}`;
         this.grid[7][3] = new Piece(PieceType.QUEEN, Color.WHITE);
+        this.grid[7][3].originalId = `orig_${idCounter++}`;
         this.grid[7][4] = new Piece(PieceType.KING, Color.WHITE);
+        this.grid[7][4].originalId = `orig_${idCounter++}`;
         this.grid[7][5] = new Piece(PieceType.BISHOP, Color.WHITE);
+        this.grid[7][5].originalId = `orig_${idCounter++}`;
         this.grid[7][6] = new Piece(PieceType.KNIGHT, Color.WHITE);
+        this.grid[7][6].originalId = `orig_${idCounter++}`;
         this.grid[7][7] = new Piece(PieceType.ROOK, Color.WHITE);
+        this.grid[7][7].originalId = `orig_${idCounter++}`;
         for (let col = 0; col < 8; col++) {
             this.grid[6][col] = new Piece(PieceType.PAWN, Color.WHITE);
+            this.grid[6][col].originalId = `orig_${idCounter++}`;
         }
     }
 
@@ -222,7 +242,7 @@ class Board {
         return this.boardTime === BoardTime.PRESENT;
     }
 
-    getTimeTravelMoves(row, col, targetBoard = null) {
+    getTimeTravelMoves(row, col, targetBoard = null, presentBoard = null) {
         const piece = this.grid[row][col];
         if (!piece || piece.isSpectator() || piece.isBanished()) {
             return [];
@@ -260,7 +280,36 @@ class Board {
         for (const move of pieceMoves) {
             const targetPiece = boardToUse.getPiece(move.toRow, move.toCol);
             if (!targetPiece) {
-                validTimeTravelMoves.push(new Move(row, col, move.toRow, move.toCol, piece, null));
+                let isValid = true;
+                
+                if (presentBoard) {
+                    const simulatedPresent = presentBoard.clone();
+                    simulatedPresent.setPiece(row, col, null);
+                    
+                    if (simulatedPresent.isInCheck(piece.color)) {
+                        console.log('时间旅行后现在棋盘的王会被将军，该移动无效');
+                        isValid = false;
+                    }
+                }
+                
+                if (isValid && targetBoard) {
+                    const simulatedTarget = targetBoard.clone();
+                    const timeTravelPiece = new Piece(piece.type, piece.color);
+                    timeTravelPiece.hasMoved = true;
+                    timeTravelPiece.isFromTimeTravel = true;
+                    timeTravelPiece.setStatus(PieceStatus.SPECTATOR);
+                    timeTravelPiece.originalId = piece.originalId;
+                    simulatedTarget.setPiece(move.toRow, move.toCol, timeTravelPiece);
+                    
+                    const opponentColor = piece.color === Color.WHITE ? Color.BLACK : Color.WHITE;
+                    if (simulatedTarget.isInCheck(opponentColor)) {
+                        console.log('时间旅行后对手的王会被将军');
+                    }
+                }
+                
+                if (isValid) {
+                    validTimeTravelMoves.push(new Move(row, col, move.toRow, move.toCol, piece, null));
+                }
             }
         }
         
@@ -910,7 +959,6 @@ class TimelineManager {
     }
 
     setupOriginalPieceIds() {
-        let idCounter = 0;
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const presentPiece = this.presentBoard.getPiece(row, col);
@@ -919,9 +967,12 @@ class TimelineManager {
                 if (presentPiece && pastPiece && 
                     presentPiece.type === pastPiece.type && 
                     presentPiece.color === pastPiece.color) {
-                    const originalId = `orig_${idCounter++}`;
-                    presentPiece.originalId = originalId;
-                    pastPiece.originalId = originalId;
+                    
+                    if (presentPiece.originalId && !pastPiece.originalId) {
+                        pastPiece.originalId = presentPiece.originalId;
+                    } else if (pastPiece.originalId && !presentPiece.originalId) {
+                        presentPiece.originalId = pastPiece.originalId;
+                    }
                 }
             }
         }
@@ -960,10 +1011,28 @@ class TimelineManager {
         const isFirstTimeTravel = !this.hasAnyTimeTraveled();
 
         if (isFirstTimeTravel) {
+            let targetPiece = null;
+            if (targetBoard) {
+                targetPiece = targetBoard.getPiece(toRow, toCol);
+            } else {
+                targetPiece = this.presentBoard.getPiece(toRow, toCol);
+            }
+            
+            if (targetPiece) {
+                console.log('时间旅行失败：目标位置已有棋子');
+                return false;
+            }
+            
             if (targetBoard) {
                 this.splitTimeline(targetBoard);
             } else {
                 this.splitTimeline();
+            }
+        } else {
+            const existingTarget = this.pastBoard.getPiece(toRow, toCol);
+            if (existingTarget) {
+                console.log('时间旅行失败：目标位置在过去棋盘已有棋子');
+                return false;
             }
         }
 
@@ -971,15 +1040,10 @@ class TimelineManager {
         timeTravelPiece.hasMoved = true;
         timeTravelPiece.isFromTimeTravel = true;
         timeTravelPiece.setStatus(PieceStatus.SPECTATOR);
+        
+        timeTravelPiece.originalId = piece.originalId;
 
-        const existingTarget = this.pastBoard.getPiece(toRow, toCol);
-        if (existingTarget) {
-            this.pastBoard.setPiece(fromRow, fromCol, existingTarget);
-            this.banishedPieces.push(existingTarget);
-        } else {
-            this.presentBoard.setPiece(fromRow, fromCol, null);
-        }
-
+        this.presentBoard.setPiece(fromRow, fromCol, null);
         this.pastBoard.setPiece(toRow, toCol, timeTravelPiece);
 
         this.setHasTimeTraveled(color);
@@ -997,42 +1061,81 @@ class TimelineManager {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board.getPiece(row, col);
-                if (piece && piece.color === color) {
-                    let multiplier = ScoreConfig.PIECE_MULTIPLIER;
+                if (piece && piece.color === color && !piece.isBanished()) {
                     if (piece.isSpectator()) {
-                        multiplier = ScoreConfig.SPECTATOR_PENALTY;
-                    } else if (piece.isBanished()) {
-                        multiplier = ScoreConfig.BANISHED_PENALTY;
+                        score += 2;
+                    } else {
+                        score += 1;
                     }
-                    score += PieceValue[piece.type] * multiplier;
                 }
             }
         }
         return score;
     }
 
+    getBoardResultScore(board, playerColor) {
+        const opponentColor = playerColor === Color.WHITE ? Color.BLACK : Color.WHITE;
+        
+        const playerCheckmate = board.isCheckmate(playerColor);
+        const opponentCheckmate = board.isCheckmate(opponentColor);
+        const playerStalemate = board.isStalemate(playerColor);
+        const opponentStalemate = board.isStalemate(opponentColor);
+        
+        const isPastBoard = board.isPastBoard();
+        
+        if (opponentCheckmate) {
+            return isPastBoard ? 20 : 15;
+        }
+        
+        if (playerCheckmate) {
+            return 0;
+        }
+        
+        if (playerStalemate || opponentStalemate) {
+            return 10;
+        }
+        
+        return 0;
+    }
+
     calculateEndGameScores() {
-        let playerTotal = 0;
-        let aiTotal = 0;
+        let playerMaterialScore = 0;
+        let aiMaterialScore = 0;
+        let playerResultScore = 0;
+        let aiResultScore = 0;
 
         if (this.isSplit()) {
-            playerTotal += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
-            playerTotal += this.calculateMaterialScore(this.pastBoard, Color.WHITE);
-            aiTotal += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
-            aiTotal += this.calculateMaterialScore(this.pastBoard, Color.BLACK);
+            playerMaterialScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            playerMaterialScore += this.calculateMaterialScore(this.pastBoard, Color.WHITE);
+            aiMaterialScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            aiMaterialScore += this.calculateMaterialScore(this.pastBoard, Color.BLACK);
+            
+            playerResultScore += this.getBoardResultScore(this.presentBoard, Color.WHITE);
+            playerResultScore += this.getBoardResultScore(this.pastBoard, Color.WHITE);
+            aiResultScore += this.getBoardResultScore(this.presentBoard, Color.BLACK);
+            aiResultScore += this.getBoardResultScore(this.pastBoard, Color.BLACK);
         } else {
-            playerTotal += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
-            aiTotal += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            playerMaterialScore += this.calculateMaterialScore(this.presentBoard, Color.WHITE);
+            aiMaterialScore += this.calculateMaterialScore(this.presentBoard, Color.BLACK);
+            
+            playerResultScore += this.getBoardResultScore(this.presentBoard, Color.WHITE);
+            aiResultScore += this.getBoardResultScore(this.presentBoard, Color.BLACK);
         }
 
-        const playerNetScore = (playerTotal - aiTotal) / 100.0;
-        const aiNetScore = (aiTotal - playerTotal) / 100.0;
+        const playerTotal = playerMaterialScore + playerResultScore;
+        const aiTotal = aiMaterialScore + aiResultScore;
+        const playerNetScore = playerTotal - aiTotal;
+        const aiNetScore = aiTotal - playerTotal;
 
         return {
             player: playerNetScore,
             ai: aiNetScore,
-            playerTotal: playerTotal / 100.0,
-            aiTotal: aiTotal / 100.0
+            playerTotal: playerTotal,
+            aiTotal: aiTotal,
+            playerMaterial: playerMaterialScore,
+            aiMaterial: aiMaterialScore,
+            playerResult: playerResultScore,
+            aiResult: aiResultScore
         };
     }
 

@@ -775,7 +775,7 @@
                 }
             }
 
-            if (canTimeTravel && Math.random() < this.config.timeTravelChance) {
+            if (canTimeTravel) {
                 const timeTravelMoves = this.getTimeTravelMoves(board, history);
                 
                 if (timeTravelMoves.length > 0) {
@@ -806,14 +806,17 @@
 
             if (this.config.randomness > 0 && scores.length > 0) {
                 scores.sort((a, b) => b.score - a.score);
-                const topMoves = scores.slice(0, Math.min(3, scores.length));
                 
-                if (topMoves.length > 0 && Math.random() < this.config.randomness * 0.5) {
-                    const randomIndex = Math.floor(Math.random() * topMoves.length);
-                    const selected = topMoves[randomIndex];
-                    if (selected.type === 'time_travel') {
-                        console.log('AI随机选择了时间旅行移动');
-                    }
+                if (scores[0].type === 'time_travel') {
+                    console.log('时间旅行移动是最佳选择，选择时间旅行移动');
+                    return { move: scores[0].move, type: scores[0].type };
+                }
+                
+                const normalTopMoves = scores.filter(s => s.type === 'normal').slice(0, Math.min(3, scores.length));
+                
+                if (normalTopMoves.length > 0 && Math.random() < this.config.randomness * 0.5) {
+                    const randomIndex = Math.floor(Math.random() * normalTopMoves.length);
+                    const selected = normalTopMoves[randomIndex];
                     return { move: selected.move, type: selected.type };
                 }
             }
